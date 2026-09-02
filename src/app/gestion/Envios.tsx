@@ -9,7 +9,7 @@ import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, Boton, Aviso, SinDatos } from "../../ui/components";
 import { enviarMercanciaAPunto } from "../../core/operations";
 import { crearPaqueteInventario } from "../../core/sync/builders";
-import { exportarYCompartir } from "../helpersRN";
+import { exportarYCarpetaYCompartir } from "../helpersRN";
 
 export function EnviosGestion() {
   const { gestDb: db, gestRepo, reemplazarGest } = useApp();
@@ -43,12 +43,21 @@ export function EnviosGestion() {
       const paquete = crearPaqueteInventario(gestion, puntoId, recepcion);
       await gestRepo.guardarGestion(gestion);
       reemplazarGest(gestion);
-      const nombre = await exportarYCompartir("gestion", paquete);
+      const nombrePunto = gestion.puntos.find((p) => p.id === puntoId)?.nombre ?? puntoId;
+      const dia = new Date().toISOString().slice(0, 10);
+      const nombreSeguro = "envio_" + nombrePunto.replace(/[^\w\-.]/g, "_") + "_" + dia + ".json";
+      const res = await exportarYCarpetaYCompartir(
+        "gestion",
+        paquete,
+        nombreSeguro,
+        "Enviar mercancía al punto"
+      );
       setMensaje({
-        texto: nombre
-          ? `Mercancía enviada a ${puntoId}. Paquete ${nombre} listo para WhatsApp/WiFi.`
-          : "Mercancía registrada pero no se pudo compartir.",
-        tipo: "ok",
+        texto: res.guardo
+          ? `Mercancía enviada a "${nombrePunto}" y guardada en la carpeta que elegiste.` +
+            (res.compartio ? " Se abrió para compartirla con el punto." : " Ya puedes enviarla desde tu explorador.")
+          : res.mensaje,
+        tipo: res.guardo ? "ok" : "error",
       });
       setCantidades({});
     } catch (e) {

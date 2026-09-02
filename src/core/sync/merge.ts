@@ -126,6 +126,48 @@ export function aplicarPaquete(
       break;
     }
 
+    case "BASE_DIA": {
+      // Gestión -> dependiente: base para abrir el día (identidad + precios + stock inicial)
+      const db = base as DependienteDb;
+      if (esDependiente) {
+        const productos = (paquete.contendido.productos ?? []) as Producto[];
+        for (const p of productos) {
+          const idx = db.productos.findIndex((x) => x.id === p.id);
+          if (idx >= 0) {
+            // Conserva ventas del día que ya estuvieran (no romper) pero
+            // actualiza precios y existencias de apertura según la base.
+            db.productos[idx] = {
+              ...db.productos[idx],
+              codigo: p.codigo ?? db.productos[idx].codigo,
+              nombre: p.nombre ?? db.productos[idx].nombre,
+              categoria: p.categoria ?? db.productos[idx].categoria,
+              precioCents: p.precioCents,
+              activo: p.activo,
+              updatedAt: p.updatedAt,
+              stock: p.stock ?? 0,
+            };
+          } else {
+            db.productos.push({ ...p, stock: p.stock ?? 0 });
+          }
+        }
+        // Identidad del punto, gestionada por la gestión
+        if (typeof paquete.contendido.punto === "string") db.meta.punto = String(paquete.contendido.punto);
+        if (typeof paquete.contendido.puntoNombre === "string") db.meta.puntoNombre = String(paquete.contendido.puntoNombre);
+        if (typeof paquete.contendido.puntoDireccion === "string") db.meta.puntoDireccion = String(paquete.contendido.puntoDireccion);
+        if (typeof paquete.contendido.puntoCuenta === "string") db.meta.puntoCuenta = String(paquete.contendido.puntoCuenta);
+        if (typeof paquete.contendido.nombreNegocio === "string") db.config.nombreNegocio = String(paquete.contendido.nombreNegocio);
+        const cfg = (paquete.contendido.config ?? {}) as Record<string, unknown>;
+        if (typeof cfg.moneda === "string") db.config.moneda = cfg.moneda;
+        if (Array.isArray(cfg.denominaciones)) db.config.denominaciones = cfg.denominaciones as number[];
+        if (typeof paquete.contendido.dia === "string") db.meta.baseProductos.fecha = String(paquete.contendido.dia);
+        db.meta.baseProductos.paqueteOrigen = paquete.paqueteId;
+        db.meta.baseProductos.folio = paquete.folio;
+        break;
+      }
+      // Si llega a la gestión (no debería), tratarlo como ignorado
+      return { aplicado: false, motivo: "BASE_DIA está dirigido a un dependiente" };
+    }
+
     case "VENTAS": {
       const ventas = (paquete.contendido.ventas ?? []) as Venta[];
       const devoluciones = (paquete.contendido.devoluciones ?? []) as Devolucion[];

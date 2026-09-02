@@ -10,7 +10,7 @@ import { registrarAjusteInventario } from "../../core/operations";
 import { fmtMoneda } from "../../core/money";
 import type { TipoAjusteInventario } from "../../core/operations";
 
-type Seccion = "ajustar" | "historial";
+type Seccion = "porPunto" | "ajustar" | "historial";
 
 const TIPOS_AJUSTE: { valor: TipoAjusteInventario; etiqueta: string }[] = [
   { valor: "faltante", etiqueta: "Faltante" },
@@ -19,11 +19,12 @@ const TIPOS_AJUSTE: { valor: TipoAjusteInventario; etiqueta: string }[] = [
 ];
 
 export function AjustesGestion() {
-  const [seccion, setSeccion] = useState<Seccion>("ajustar");
+  const [seccion, setSeccion] = useState<Seccion>("porPunto");
   return (
     <View style={estilos.contenido}>
       <View style={[s.pestanas, { marginBottom: 12 }]}>
         {([
+          ["porPunto", "Por punto"],
           ["ajustar", "Ajustar"],
           ["historial", "Historial"],
         ] as [Seccion, string][]).map(([c, txt]) => (
@@ -36,10 +37,53 @@ export function AjustesGestion() {
           </Pressable>
         ))}
       </View>
+      {seccion === "porPunto" && <InventarioPorPunto />}
       {seccion === "ajustar" && <AjustarInventario />}
       {seccion === "historial" && <HistorialInventario />}
     </View>
   );
+}
+
+function InventarioPorPunto() {
+  const { gestDb: db } = useApp();
+  const ubicaciones: { id: string; nombre: string }[] = [
+    { id: "bodega", nombre: "Bodega (central)" },
+    ...db.puntos.map((p) => ({ id: p.id, nombre: p.nombre })),
+  ];
+  return (
+    <FlatList
+      data={ubicaciones}
+      keyExtractor={(u) => u.id}
+      ListEmptyComponent={<SinDatos texto="Sin ubicaciones." />}
+      renderItem={({ item }) => {
+        const productosExistentes = db.productos.filter((p) => (p.inventario[item.id] ?? 0) > 0)
+          .sort((a, b) => (b.inventario[item.id] ?? 0) - (a.inventario[item.id] ?? 0));
+        const totalUnidades = productosExistentes.reduce((s, p) => s + (p.inventario[item.id] ?? 0), 0);
+        return (
+          <Tarjeta>
+            <View style={[estilos.fila, { marginBottom: 6 }]}>
+              <Text style={estilos.titulo}>{item.nombre}</Text>
+              <Text style={estilos.subtitulo}>{totalUnidades} uds</Text>
+            </View>
+            {productosExistentes.length === 0 ? (
+              <Text style={estilos.subtitulo}>Sin existencias.</Text>
+            ) : (
+              productosExistentes.map((p) => (
+                <View key={p.id} style={[estilos.fila, { paddingVertical: 5, borderTopWidth: 1, borderTopColor: colores.borde }]}>
+                  <Text style={{ flex: 1 }} numberOfLines={1}>{p.nombre}</Text>
+                  <Text style={{ fontWeight: "700" }}>{p.inventario[item.id] ?? 0} {etiquetaUnidad(p.unidadMedida)}</Text>
+                </View>
+              ))
+            )}
+          </Tarjeta>
+        );
+      }}
+    />
+  );
+}
+
+function etiquetaUnidad(u?: string): string {
+  return u === "kg" ? "kg" : u === "l" ? "L" : "uds";
 }
 
 function AjustarInventario() {

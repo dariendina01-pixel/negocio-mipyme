@@ -144,4 +144,60 @@ export async function guardarJsonEnCarpeta(
   }
 }
 
+/**
+ * Guarda un paquete en la carpeta que elija el usuario y LUEGO le ofrece
+ * compartirlo (WhatsApp/Bluetooth/email). Es el flujo para los archivos
+ * destinados a los puntos de venta: primero eliges dónde se crea el archivo
+ * y después, si quieres, lo envías.
+ */
+export interface ResultadoExportarCarpetaYCompartir {
+  guardo: boolean;
+  compartio: boolean;
+  mensaje: string;
+  ruta?: string;
+}
+
+export async function exportarYCarpetaYCompartir(
+  rol: Rol,
+  paquete: Paquete,
+  nombreSugerido?: string,
+  titulo = "Enviar actualización de base de datos"
+): Promise<ResultadoExportarCarpetaYCompartir> {
+  const dir = dirDatos(rol);
+  const repo = crearRepo(rol);
+  const { nombre, contenido } = await repo.exportarPaquete(paquete, nombreSugerido);
+
+  // 1) Elegir carpeta y guardar ahí
+  const res = await guardarJsonEnCarpeta(rol, nombre, contenido);
+  if (!res.ok) {
+    return { guardo: false, compartio: false, mensaje: res.mensaje };
+  }
+
+  // 2) Ofrecer compartir
+  let compartio = false;
+  const disponible = await Sharing.isAvailableAsync();
+  if (disponible) {
+    const archivo = new File(Paths.document, `${dir}/exportaciones/${nombre}`);
+    if (archivo.exists) {
+      try {
+        await Sharing.shareAsync(archivo.uri, {
+          mimeType: "application/json",
+          dialogTitle: titulo,
+          UTI: "public.json",
+        });
+        compartio = true;
+      } catch {
+        compartio = false; // el usuario puede cancelar el share; el archivo ya quedó guardado
+      }
+    }
+  }
+
+  return {
+    guardo: true,
+    compartio,
+    mensaje: res.mensaje,
+    ruta: res.ruta,
+  };
+}
+
 export { obtenerIdentidad };

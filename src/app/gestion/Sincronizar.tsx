@@ -8,7 +8,7 @@ import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, Boton, Aviso, Campo } from "../../ui/components";
 import { crearPaqueteProductos, crearPaqueteConfig } from "../../core/sync/builders";
-import { dirDatos, exportarYCompartir, seleccionarArchivoRespaldo, puenteWifi, guardarJsonEnCarpeta } from "../helpersRN";
+import { dirDatos, exportarYCarpetaYCompartir, seleccionarArchivoRespaldo, puenteWifi, guardarJsonEnCarpeta } from "../helpersRN";
 import { adapterExpo } from "../../core/fs/fs_expo";
 import { serializarJson } from "../../core/fs";
 import { aplicarPaquete } from "../../core/sync/merge";
@@ -51,12 +51,22 @@ export function SincronizarGestion() {
       const copia = JSON.parse(JSON.stringify(db)) as typeof db;
       const paquete = crearPaqueteProductos(copia);
       await gestRepo.guardarGestion(copia);
-      const nombre = await exportarYCompartir("gestion", paquete);
+      const dia = new Date().toISOString().slice(0, 10);
+      const nombreSeguro = "precios_catalogo_" + dia + ".json";
+      const res = await exportarYCarpetaYCompartir(
+        "gestion",
+        paquete,
+        nombreSeguro,
+        "Enviar precios y catálogo al punto"
+      );
       reemplazarGest(copia);
+      if (!res.guardo) {
+        setMensaje({ texto: res.mensaje, tipo: "error" });
+        return;
+      }
       setMensaje({
-        texto: nombre
-          ? `Paquete de precios creado (${(paquete.contendido.productos as unknown[]).length} productos). Envíalo al dependiente.`
-          : "Paquete creado sin poder compartir.",
+        texto: `Catálogo de ${(paquete.contendido.productos as unknown[]).length} productos guardado en tu carpeta.` +
+          (res.compartio ? " Se abrió para compartirlo con el punto." : " Ya puedes enviarlo desde tu explorador."),
         tipo: "ok",
       });
     } catch (e) {
@@ -72,9 +82,20 @@ export function SincronizarGestion() {
       const copia = JSON.parse(JSON.stringify(db)) as typeof db;
       const paquete = crearPaqueteConfig(copia);
       await gestRepo.guardarGestion(copia);
-      await exportarYCompartir("gestion", paquete);
+      const dia = new Date().toISOString().slice(0, 10);
+      const res = await exportarYCarpetaYCompartir(
+        "gestion",
+        paquete,
+        "config_" + dia + ".json",
+        "Enviar configuración al punto"
+      );
       reemplazarGest(copia);
-      setMensaje({ texto: "Paquete de configuración listo.", tipo: "ok" });
+      setMensaje({
+        texto: res.guardo
+          ? "Paquete de configuración guardado en tu carpeta." + (res.compartio ? " Se abrió para compartir." : "")
+          : res.mensaje,
+        tipo: res.guardo ? "ok" : "error",
+      });
     } catch (e) {
       setMensaje({ texto: "Error: " + String(e), tipo: "error" });
     } finally {

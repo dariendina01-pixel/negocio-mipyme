@@ -22,7 +22,7 @@ const PESTANAS: { clave: Pestana; etiqueta: string }[] = [
   { clave: "envios", etiqueta: "Envíos" },
   { clave: "recibidos", etiqueta: "Recibidos" },
   { clave: "puntos", etiqueta: "Puntos" },
-  { clave: "ajustes", etiqueta: "Ajustes" },
+  { clave: "ajustes", etiqueta: "Inventarios" },
   { clave: "sync", etiqueta: "Sync" },
 ];
 
@@ -46,6 +46,7 @@ export function AppGestion({ onCambiarApp }: { onCambiarApp: () => void }) {
       {pestana === "envios" && <EnviosGestion />}
       {pestana === "recibidos" && <RecibidosGestion />}
       {pestana === "puntos" && <PuntosGestion />}
+      {pestana === "ajustes" && <AjustesGestion />}
       {pestana === "sync" && <SincronizarGestion />}
 
       <View style={{ marginBottom: 56 }} />

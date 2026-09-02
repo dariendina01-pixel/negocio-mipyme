@@ -47,6 +47,8 @@ export interface Punto {
   id: string;
   nombre: string;
   dispositivo?: string;
+  direccion?: string;
+  cuentaTransferencia?: string;
   saldoCajaCents: Centavos;
 }
 
@@ -137,6 +139,8 @@ export interface DependienteDb {
     dispositivo: string;
     punto: string; // id del punto
     puntoNombre: string;
+    puntoDireccion?: string; // gestionada por la gestión
+    puntoCuenta?: string; // gestionada por la gestión (transferencias)
     baseProductos: {
       paqueteOrigen: string | null; // id del paquete de productos aplicado
       folio: number;
@@ -235,6 +239,7 @@ export function plantillaGestion(): GestionDb {
 
 export type TipoPaquete =
   | "PRODUCTOS" // gestión -> dependiente: lista de precios/productos (sin existencias reales)
+  | "BASE_DIA" // gestión -> dependiente: base para abrir el día (identidad + precios + stock inicial)
   | "VENTAS" // dependiente -> gestión: ventas, gastos, arqueos, recepciones, cierre
   | "INVENTARIO" // gestión -> dependiente: mercancía enviada a un punto
   | "INVENTARIO_RECIBIDO" // dependiente -> gestión: mercancía que llegó directo al punto

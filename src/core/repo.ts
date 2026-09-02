@@ -97,8 +97,8 @@ export class Repo {
   }
 
   /** Exporta un paquete: lo escribe en la carpeta de exportaciones y devuelve texto. */
-  async exportarPaquete(paquete: Paquete): Promise<{ nombre: string; contenido: string }> {
-    const nombre = nombreArchivoPaquete(paquete);
+  async exportarPaquete(paquete: Paquete, nombreArchivo?: string): Promise<{ nombre: string; contenido: string }> {
+    const nombre = nombreArchivo || nombreArchivoPaquete(paquete);
     const contenido = serializarJson(paquete);
     await this.fs.crearDir("exportaciones", true);
     await this.fs.escribir(`exportaciones/${nombre}`, contenido);

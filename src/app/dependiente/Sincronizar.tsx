@@ -14,7 +14,7 @@ import { fmtMoneda } from "../../core/money";
 import { crearPaqueteVentas } from "../../core/sync/builders";
 import { resumenDia, textoCierre, registrarCierre, marcarCierreEntregado, diaCerrado, cierreDeDia } from "../../core/operations";
 import { hoyLocal, maxFolioRecibido } from "../../core/folio";
-import { dirDatos, exportarYCompartir, seleccionarArchivoRespaldo, puenteWifi, guardarJsonEnCarpeta, compartirTexto } from "../helpersRN";
+import { dirDatos, exportarYCarpetaYCompartir, seleccionarArchivoRespaldo, puenteWifi, guardarJsonEnCarpeta, compartirTexto } from "../helpersRN";
 import { serializarJson } from "../../core/fs";
 import { adapterExpo } from "../../core/fs/fs_expo";
 import { aplicarPaquete } from "../../core/sync/merge";
@@ -22,7 +22,6 @@ import type { Paquete } from "../../core/types";
 
 export function SincronizarDependiente() {
   const { depDb: db, mutarDep, guardarDep, dispositivo } = useApp();
-  const [nombrePunto, setNombrePunto] = useState(db.meta.puntoNombre);
   const [mensaje, setMensaje] = useState<{ texto: string; tipo?: "ok" | "error" } | null>(null);
   const [urlPuente, setUrlPuente] = useState("");
   const [wifiEstado, setWifiEstado] = useState("");
@@ -30,7 +29,9 @@ export function SincronizarDependiente() {
   const dia = hoyLocal();
   const resumen = resumenDia(db, dia);
 
-  const idMiBase = db.meta.punto || nombrePunto || dispositivo;
+  // La identidad del punto (nombre, dirección, cuenta) la define la gestión y
+  // llega al importar la base del día. Solo se usa el dispositivo como respaldo.
+  const idMiBase = db.meta.punto || db.meta.dispositivo || dispositivo;
 
   useEffect(() => {
     (async () => {
@@ -46,26 +47,26 @@ export function SincronizarDependiente() {
     })();
   }, []);
 
-  const guardarIdentidad = () => {
-    mutarDep((d) => {
-      d.meta.puntoNombre = nombrePunto.trim() || d.meta.puntoNombre;
-      if (!d.meta.punto) d.meta.punto = nombrePunto.trim();
-    });
-    setMensaje({ texto: "Identidad del punto guardada", tipo: "ok" });
-  };
-
   const exportarVentas = async () => {
     setOcupado(true);
     try {
       // crearPaqueteVentas actualiza las marcas del modelo en memoria
       const paquete = crearPaqueteVentas(db);
       await guardarDep(); // persiste marcas (lo ya enviado)
-      const nombre = await exportarYCompartir("dependiente", paquete);
+      const dia = new Date().toISOString().slice(0, 10);
+      const nombreSeguro = "ventas_" + (db.meta.puntoNombre || db.meta.punto || "punto").replace(/[^\w\-.]/g, "_") + "_" + dia + ".json";
+      const res = await exportarYCarpetaYCompartir(
+        "dependiente",
+        paquete,
+        nombreSeguro,
+        "Enviar ventas a la gestión"
+      );
       setMensaje({
-        texto: nombre
-          ? `Paquete exportado. Envíalo por WhatsApp/Bluetooth/correo. (${nombre}) ${(paquete.contendido.ventas as unknown[]).length} ventas, ${(paquete.contendido.gastos as unknown[]).length} gastos.`
-          : "Paquete creado pero no se pudo compartir.",
-        tipo: "ok",
+        texto: res.guardo
+          ? `Paquete guardado en la carpeta que elegiste (${(paquete.contendido.ventas as unknown[]).length} ventas, ${(paquete.contendido.gastos as unknown[]).length} gastos).` +
+            (res.compartio ? " Se abrió para enviarlo a la gestión." : " Ya puedes enviarlo desde tu explorador.")
+          : res.mensaje,
+        tipo: res.guardo ? "ok" : "error",
       });
     } catch (e) {
       setMensaje({ texto: "Error al exportar: " + String(e), tipo: "error" });
@@ -91,10 +92,11 @@ export function SincronizarDependiente() {
       const resultado = aplicarPaquete(db, paquete, idMiBase);
       await guardarDep();
       if (resultado.aplicado) {
-        setMensaje({
-          texto: `Actualización aplicada (${resultado.productosActualizados ?? 0} productos, ${resultado.nuevosVentas ?? 0} ventas, ${resultado.nuevosGastos ?? 0} gastos).`,
-          tipo: "ok",
-        });
+        let detalle = `${resultado.productosActualizados ?? 0} productos, ${resultado.nuevosVentas ?? 0} ventas, ${resultado.nuevosGastos ?? 0} gastos.`;
+        if (paquete.tipo === "BASE_DIA") {
+          detalle = `Base del día aplicada. Punto: ${db.meta.puntoNombre ?? db.meta.punto} · negocio: ${db.config.nombreNegocio || "-"}. ${db.productos.length} productos.`;
+        }
+        setMensaje({ texto: "Actualización aplicada: " + detalle, tipo: "ok" });
       } else {
         setMensaje({ texto: "Paquete ya aplicado o para otro destino.", tipo: "error" });
       }
@@ -195,12 +197,44 @@ export function SincronizarDependiente() {
       {mensaje ? <Aviso texto={mensaje.texto} tipo={mensaje.tipo} /> : null}
 
       <Tarjeta>
-        <Text style={estilos.titulo}>Mi punto de venta</Text>
-        <Text style={estilos.subtitulo}>Nombre que verá el dueño en la gestión.</Text>
+        <Text style={estilos.titulo}>Mi punto</Text>
+        <Text style={estilos.subtitulo}>La identidad de tu punto la define el dueño (gestión) al generarte la base del día.</Text>
         <View style={{ marginTop: 10 }}>
-          <Campo etiqueta="Nombre del punto" valor={nombrePunto} onChange={setNombrePunto} placeholder="Ej: Punto La Esquina" />
+          <View style={estilos.fila}>
+            <Text style={estilos.etiqueta}>Punto</Text>
+            <Text style={{ fontWeight: "700" }}>{db.meta.puntoNombre || "(sin base)"}</Text>
+          </View>
+          {db.meta.puntoDireccion ? (
+            <View style={[estilos.fila, { marginTop: 6 }]}>
+              <Text style={estilos.etiqueta}>Dirección</Text>
+              <Text style={{ flex: 1, textAlign: "right" }}>{db.meta.puntoDireccion}</Text>
+            </View>
+          ) : null}
+          {db.meta.puntoCuenta ? (
+            <View style={[estilos.fila, { marginTop: 6 }]}>
+              <Text style={estilos.etiqueta}>Cuenta</Text>
+              <Text style={{ flex: 1, textAlign: "right" }}>{db.meta.puntoCuenta}</Text>
+            </View>
+          ) : null}
+          <View style={[estilos.fila, { marginTop: 6 }]}>
+            <Text style={estilos.etiqueta}>Negocio</Text>
+            <Text style={{ fontWeight: "700" }}>{db.config.nombreNegocio || "-"}</Text>
+          </View>
+          {db.meta.baseProductos?.fecha ? (
+            <View style={[estilos.fila, { marginTop: 6 }]}>
+              <Text style={estilos.etiqueta}>Base del día</Text>
+              <Text style={{ fontWeight: "700" }}>{db.meta.baseProductos.fecha}</Text>
+            </View>
+          ) : null}
         </View>
-        <Boton texto="Guardar identidad" onPress={guardarIdentidad} variante="secundario" />
+      </Tarjeta>
+
+      <Tarjeta>
+        <Text style={estilos.titulo}>Abrir mi día</Text>
+        <Text style={estilos.subtitulo}>Importa el archivo que te generó el dueño (base del día). Te deja listo con tu identidad, precios e inventario de apertura.</Text>
+        <View style={{ marginTop: 10 }}>
+          <Boton texto="Abrir día (importar base)" onPress={importarArchivo} grande deshabilitado={ocupado} />
+        </View>
       </Tarjeta>
 
       <Tarjeta>

@@ -21,6 +21,7 @@ export function ProductosGestion() {
   const { gestDb: db, mutarGest } = useApp();
   const [busqueda, setBusqueda] = useState("");
   const [editando, setEditando] = useState<ProductoGestion | "nuevo" | null>(null);
+  const [entrando, setEntrando] = useState<ProductoGestion | null>(null);
 
   const productos = db.productos.filter(
     (p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || p.codigo.toLowerCase().includes(busqueda.toLowerCase())
@@ -40,6 +41,25 @@ export function ProductosGestion() {
           setEditando(null);
         }}
         onCancelar={() => setEditando(null)}
+      />
+    );
+  }
+
+  if (entrando) {
+    return (
+      <EditorProducto
+        producto={entrando}
+        esNuevo={false}
+        modoEntrada={true}
+        onGuardar={(p) => {
+          mutarGest((d) => {
+            const idx = d.productos.findIndex((x) => x.id === p.id);
+            if (idx >= 0) d.productos[idx] = p;
+            else d.productos.push(p);
+          });
+          setEntrando(null);
+        }}
+        onCancelar={() => setEntrando(null)}
       />
     );
   }
@@ -96,6 +116,19 @@ export function ProductosGestion() {
                         {k}: {v} {etiquetaUnidad(item.unidadMedida)}
                       </Text>
                     ))}
+                  <View style={{ marginTop: 10 }}>
+                    <Boton
+                      texto="+ Compra / Entrada"
+                      variante="secundario"
+                      onPress={(() => {
+                        const fn = (ev: { stopPropagation: () => void }) => {
+                          ev.stopPropagation();
+                          setEntrando(item);
+                        };
+                        return fn as () => void;
+                      })()}
+                    />
+                  </View>
                 </Tarjeta>
               </Pressable>
             );
@@ -113,6 +146,7 @@ function etiquetaUnidad(u?: UnidadMedida): string {
 function EditorProducto(props: {
   producto: ProductoGestion;
   esNuevo: boolean;
+  modoEntrada?: boolean;
   onGuardar: (p: ProductoGestion) => void;
   onCancelar: () => void;
 }) {
@@ -189,7 +223,9 @@ function EditorProducto(props: {
   return (
     <PantallaConTeclado>
       <Tarjeta>
-        <Text style={estilos.titulo}>{props.esNuevo ? "Nuevo producto" : "Editar producto"}</Text>
+        <Text style={estilos.titulo}>
+          {props.esNuevo ? "Nuevo producto" : props.modoEntrada ? `Compra / entrada · ${props.producto.nombre}` : "Editar producto"}
+        </Text>
         {error ? <Aviso texto={error} tipo="error" /> : null}
         <Campo etiqueta="Nombre" valor={nombre} onChange={setNombre} />
         <Campo etiqueta="Código" valor={codigo} onChange={setCodigo} />

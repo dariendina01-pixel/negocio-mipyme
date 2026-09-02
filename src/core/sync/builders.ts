@@ -55,6 +55,42 @@ export function crearPaqueteProductos(gestion: GestionDb, destino = "cualquiera"
   return paquete;
 }
 
+/**
+ * Paquete BASE_DIA (gestión -> dependiente): el archivo que el dependiente
+ * importa para "abrir el día". Lleva su identidad (nombre, dirección, cuenta),
+ * los precios y el inventario inicial de ESE punto. Confirmar el inventario de
+ * un punto en la gestión = generar y entregar este archivo.
+ */
+export function crearPaqueteBaseDia(gestion: GestionDb, puntoId: string): Paquete {
+  const punto = gestion.puntos.find((p) => p.id === puntoId);
+  const baseProductos: Producto[] = gestion.productos.map((p) => ({
+    id: p.id,
+    codigo: p.codigo,
+    nombre: p.nombre,
+    precioCents: p.precioCents,
+    categoria: p.categoria,
+    activo: p.activo,
+    updatedAt: p.updatedAt,
+    stock: p.inventario[puntoId] ?? 0, // inventario de apertura del punto
+  }));
+  return crearPaquete(gestion, {
+    origen: "gestion",
+    tipo: "BASE_DIA",
+    destino: puntoId,
+    contendido: {
+      productos: baseProductos,
+      punto: puntoId,
+      puntoNombre: punto?.nombre ?? puntoId,
+      puntoDireccion: punto?.direccion,
+      puntoCuenta: punto?.cuentaTransferencia,
+      nombreNegocio: gestion.meta.nombreNegocio,
+      config: gestion.config,
+      dia: new Date().toISOString().slice(0, 10),
+    },
+    resumen: `Base del día para ${punto?.nombre ?? puntoId}`,
+  });
+}
+
 export function crearPaqueteInventario(
   gestion: GestionDb,
   puntoId: string,
