@@ -10,6 +10,7 @@ import {
   Paquete,
   Producto,
   Venta,
+  Devolucion,
   Gasto,
   Recepcion,
   Arqueo,
@@ -127,6 +128,7 @@ export function aplicarPaquete(
 
     case "VENTAS": {
       const ventas = (paquete.contendido.ventas ?? []) as Venta[];
+      const devoluciones = (paquete.contendido.devoluciones ?? []) as Devolucion[];
       const gastos = (paquete.contendido.gastos ?? []) as Gasto[];
       const arqueos = (paquete.contendido.arqueos ?? []) as Arqueo[];
       const recepciones = (paquete.contendido.recepciones ?? []) as Recepcion[];
@@ -177,6 +179,28 @@ export function aplicarPaquete(
 
         for (const a of arqueos) {
           if (!db.arqueosRecibidos.some((x) => x.id === a.id)) db.arqueosRecibidos.push(a);
+        }
+
+        // Devoluciones: la mercancía vuelve al inventario del punto
+        for (const dev of devoluciones) {
+          if (!db.devolucionesRecibidas.some((x) => x.id === dev.id)) {
+            db.devolucionesRecibidas.push(dev);
+            // Sumar de vuelta al inventario del punto
+            const prod = db.productos.find((x) => x.id === dev.productoId);
+            if (prod) {
+              const actual = prod.inventario[dev.punto] ?? 0;
+              prod.inventario[dev.punto] = actual + dev.cantidad;
+            }
+            db.movimientosInventario.push({
+              id: "MOV-" + dev.id,
+              fecha: dev.fecha,
+              tipo: "DEVOLUCION",
+              productoId: dev.productoId,
+              punto: dev.punto,
+              cantidad: dev.cantidad,
+              referencia: dev.id,
+            });
+          }
         }
 
         // Mercancía que llegó directo al punto (el punto informa a la gestión)

@@ -71,6 +71,20 @@ export interface Venta {
   gastadoEnExterno?: boolean; // true si no pasó por la caja de la app
 }
 
+/** Devolución de una venta: restablece inventario y resta al total del día. */
+export interface Devolucion {
+  id: string;
+  folio: number;
+  punto: string;
+  fecha: string;
+  productoId: string;
+  nombre: string;
+  cantidad: number; // unidades devueltas (positivo)
+  precioCents: Centavos; // precio unitario al que se devolvió
+  montoCents: Centavos; // NEGATIVO: resta al total de ventas del día
+  motivo?: string;
+}
+
 export interface Gasto {
   id: string;
   folio: number;
@@ -110,6 +124,8 @@ export interface Cierre {
   arqueoCents: Centavos;
   numVentas: number;
   exportado: boolean;
+  entregado: boolean; // true: día cerrado/entregado, inmutable
+  generado: string; // ISO fecha de generación
 }
 
 // ---------- Base datos DEPENDIENTE ----------
@@ -131,6 +147,7 @@ export interface DependienteDb {
   };
   productos: Producto[]; // ============ BASE DE PRECIOS / PRODUCTOS ============
   ventas: Venta[]; //                ============ BASE DE VENTAS ============
+  devoluciones: Devolucion[];
   gastos: Gasto[];
   recepciones: Recepcion[];
   arqueos: Arqueo[];
@@ -156,6 +173,7 @@ export function plantillaDependiente(): DependienteDb {
     },
     productos: [],
     ventas: [],
+    devoluciones: [],
     gastos: [],
     recepciones: [],
     arqueos: [],
@@ -177,13 +195,14 @@ export interface GestionDb {
   productos: ProductoGestion[]; // inventario general + precios
   puntos: Punto[]; // puntos de venta / dispositivos dependientes
   ventasRecibidas: Venta[];
+  devolucionesRecibidas: Devolucion[];
   gastosRecibidos: Gasto[];
   recepcionesRecibidas: Recepcion[];
   arqueosRecibidos: Arqueo[];
   movimientosInventario: {
     id: string;
     fecha: string;
-    tipo: "ENTRADA" | "SALIDA" | "AJUSTE" | "VENTA" | "ENVIO";
+    tipo: "ENTRADA" | "SALIDA" | "AJUSTE" | "VENTA" | "ENVIO" | "DEVOLUCION";
     productoId: string;
     punto: string;
     cantidad: number;
@@ -203,6 +222,7 @@ export function plantillaGestion(): GestionDb {
     productos: [],
     puntos: [],
     ventasRecibidas: [],
+    devolucionesRecibidas: [],
     gastosRecibidos: [],
     recepcionesRecibidas: [],
     arqueosRecibidos: [],

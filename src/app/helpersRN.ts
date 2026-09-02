@@ -5,6 +5,7 @@
 // =============================================================
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { File, Paths } from "expo-file-system";
 import { adapterExpo } from "../core/fs/fs_expo";
 import { Repo } from "../core/repo";
@@ -103,6 +104,44 @@ export async function compartirTexto(
 /** Adapta el resultado del selector para devolver texto además. */
 export function puenteWifi(baseUrl: string): PuenteWifi {
   return new PuenteWifi(baseUrl);
+}
+
+export interface ResultadoExportarDirectorio {
+  ok: boolean;
+  mensaje: string;
+  ruta?: string;
+}
+
+/**
+ * Exporta un texto como archivo JSON pidiendo al usuario qué carpeta usar
+ * (SAF — Storage Access Framework). Ambos roles guardan respaldos así.
+ */
+export async function guardarJsonEnCarpeta(
+  rol: Rol,
+  nombreArchivo: string,
+  texto: string
+): Promise<ResultadoExportarDirectorio> {
+  try {
+    const dir = dirDatos(rol);
+    const fs = adapterExpo(dir);
+    // Nombre edgible sin problemas de espacios
+    const nombre = nombreArchivo.replace(/[^\w\-.]/g, "_");
+    const perms = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+    if (!perms.granted) {
+      return { ok: false, mensaje: "No se permitió la carpeta." };
+    }
+    const uri = await FileSystem.StorageAccessFramework.createFileAsync(
+      perms.directoryUri,
+      nombre,
+      "application/json"
+    );
+    await FileSystem.StorageAccessFramework.writeAsStringAsync(uri, texto);
+    // Respaldo local también por seguridad
+    await fs.escribir(`exportaciones/${nombre}`, texto);
+    return { ok: true, mensaje: "Archivo guardado en la carpeta elegida.", ruta: uri };
+  } catch (e) {
+    return { ok: false, mensaje: "Error al guardar archivo: " + String(e) };
+  }
 }
 
 export { obtenerIdentidad };

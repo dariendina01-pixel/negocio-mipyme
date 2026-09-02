@@ -12,9 +12,10 @@ import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, Boton, Aviso, Campo } from "../../ui/components";
 import { fmtMoneda } from "../../core/money";
 import { crearPaqueteVentas } from "../../core/sync/builders";
-import { resumenDia, textoCierre } from "../../core/operations";
+import { resumenDia, textoCierre, registrarCierre, marcarCierreEntregado, diaCerrado, cierreDeDia } from "../../core/operations";
 import { hoyLocal, maxFolioRecibido } from "../../core/folio";
-import { dirDatos, exportarYCompartir, seleccionarArchivoRespaldo, puenteWifi, compartirTexto } from "../helpersRN";
+import { dirDatos, exportarYCompartir, seleccionarArchivoRespaldo, puenteWifi, guardarJsonEnCarpeta, compartirTexto } from "../helpersRN";
+import { serializarJson } from "../../core/fs";
 import { adapterExpo } from "../../core/fs/fs_expo";
 import { aplicarPaquete } from "../../core/sync/merge";
 import type { Paquete } from "../../core/types";
@@ -142,6 +143,42 @@ export function SincronizarDependiente() {
     }
   };
 
+  const cerrarDia = async () => {
+    // Registrar cierre (primera vez) y marcarlo entregado (inmutable)
+    const cierre = registrarCierre(db, dia);
+    marcarCierreEntregado(db, dia);
+    await guardarDep();
+
+    const resumen_ = resumenDia(db, dia);
+    const objetoCierre = {
+      tipo: "CIERRE_ENTREGADO",
+      version: 1,
+      negocio: "Negocio - Mipyme",
+      punto: db.meta.puntoNombre || db.meta.punto || db.meta.dispositivo,
+      dispositivo: db.meta.dispositivo,
+      dia,
+      cierre,
+      resumen: resumen_,
+      ventas: db.ventas.filter((v) => v.fecha.slice(0, 10) === dia),
+      devoluciones: db.devoluciones.filter((d) => d.fecha.slice(0, 10) === dia),
+      gastos: db.gastos.filter((g) => g.fecha.slice(0, 10) === dia),
+      generado: new Date().toISOString(),
+      inmutable: true,
+    };
+    const texto = serializarJson(objetoCierre);
+    const res = await guardarJsonEnCarpeta("dependiente", `cierre_entregado_${dia}.json`, texto);
+    // También texto legible para enviar por WhatsApp
+    const txtResumen = textoCierre({ dia, resumen: resumen_ });
+    await compartirTexto("dependiente", "cierre_" + dia + ".txt", txtResumen, "Cierre del día");
+
+    setMensaje({
+      texto: res.ok
+        ? "Día cerrado y ENTREGADO. El archivo del cierre es inmutable. " + res.mensaje
+        : "Cierre generado pero no se pudo guardar en carpeta: " + res.mensaje,
+      tipo: res.ok ? "ok" : "error",
+    });
+  };
+
   const enviarResumenWhatsaapp = async () => {
     const texto = textoCierre({ dia, resumen });
     const nombre = await compartirTexto("dependiente", "cierre_" + dia + ".txt", texto, "Enviar cierre del día");
@@ -208,10 +245,19 @@ export function SincronizarDependiente() {
 
       <Tarjeta>
         <Text style={estilos.titulo}>Cierre de día</Text>
-        <Text style={estilos.subtitulo}>Genera el resumen del día como texto para el dueño.</Text>
-        <View style={{ marginTop: 10 }}>
-          <Boton texto="Generar y enviar resumen (WhatsApp)" onPress={enviarResumenWhatsaapp} variante="acento" deshabilitado={ocupado} />
-        </View>
+        {diaCerrado(db, dia) ? (
+          <Aviso texto={`El día ${dia} ya está cerrado y ENTREGADO. El archivo es inmutable, no se puede modificar.`} />
+        ) : (
+          <>
+            <Text style={estilos.subtitulo}>Cierra el día: genera el archivo JSON "entregado" y lo guarda en la carpeta que elijas. El día queda inmutable.</Text>
+            <View style={{ marginTop: 10 }}>
+              <Boton texto="Cerrar día y generar JSON (entregado)" onPress={cerrarDia} variante="acento" deshabilitado={ocupado} />
+            </View>
+            <View style={{ marginTop: 10 }}>
+              <Boton texto="Solo enviar resumen por WhatsApp" onPress={enviarResumenWhatsaapp} variante="secundario" deshabilitado={ocupado} />
+            </View>
+          </>
+        )}
       </Tarjeta>
     </ScrollView>
   );

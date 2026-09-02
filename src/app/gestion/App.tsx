@@ -12,8 +12,9 @@ import { EnviosGestion } from "./Envios";
 import { RecibidosGestion } from "./Recibidos";
 import { PuntosGestion } from "./Puntos";
 import { SincronizarGestion } from "./Sincronizar";
+import { AjustesGestion } from "./Ajustes";
 
-type Pestana = "resumen" | "productos" | "envios" | "recibidos" | "puntos" | "sync";
+type Pestana = "resumen" | "productos" | "envios" | "recibidos" | "puntos" | "ajustes" | "sync";
 
 const PESTANAS: { clave: Pestana; etiqueta: string }[] = [
   { clave: "resumen", etiqueta: "Resumen" },
@@ -21,6 +22,7 @@ const PESTANAS: { clave: Pestana; etiqueta: string }[] = [
   { clave: "envios", etiqueta: "Envíos" },
   { clave: "recibidos", etiqueta: "Recibidos" },
   { clave: "puntos", etiqueta: "Puntos" },
+  { clave: "ajustes", etiqueta: "Ajustes" },
   { clave: "sync", etiqueta: "Sync" },
 ];
 

@@ -13,8 +13,9 @@ import {
   TecladoNumerico,
 } from "../../ui/components";
 import { fmt, fmtMoneda, aCentavos } from "../../core/money";
-import { productosDisponibles, registrarVenta, validarExistencias } from "../../core/operations";
+import { productosDisponibles, registrarVenta, validarExistencias, diaCerrado } from "../../core/operations";
 import { desgloseCambio } from "../../core/denominations";
+import { hoyLocal } from "../../core/folio";
 import type { LineaCarrito } from "./modelo";
 import { cambiarCantidad, quitarLinea, totalCarrito, convertirLineas } from "./modelo";
 
@@ -23,7 +24,7 @@ export function PantallaVenta(props: {
   onCambiarCarrito: (nuevo: LineaCarrito[]) => void;
   onIrACobro: () => void;
 }) {
-  const { depDb: db } = useApp();
+  const { depDb: db, mutarDep, gestDb } = useApp();
   const [busqueda, setBusqueda] = useState("");
   const productos = productosDisponibles(db).filter(
     (p) =>
@@ -32,9 +33,39 @@ export function PantallaVenta(props: {
   );
   const total = totalCarrito(props.carrito);
 
+  // Punto de trabajo activo: el dependiente elige dónde trabaja hoy.
+  const puntosTrabajo = gestDb.puntos;
+  const puntoTrabajo = db.meta.punto || db.meta.puntoNombre || (puntosTrabajo[0]?.id ?? "");
+  const elegirPunto = (id: string) => {
+    const pj = puntosTrabajo.find((p) => p.id === id);
+    mutarDep((d) => {
+      d.meta.punto = id;
+      d.meta.puntoNombre = pj?.nombre || id;
+    });
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <View style={[estilos.contenido, { flex: 1 }]}>
+        {puntosTrabajo.length > 0 ? (
+          <View style={{ marginBottom: 8 }}>
+            <Text style={estilos.etiqueta}>Punto de trabajo</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+              {puntosTrabajo.map((p) => {
+                const activo = (db.meta.punto || db.meta.puntoNombre) &&
+                  (db.meta.punto === p.id || db.meta.puntoNombre === p.nombre);
+                return (
+                  <Boton
+                    key={p.id}
+                    texto={p.nombre}
+                    variante={activo ? "primario" : "secundario"}
+                    onPress={() => elegirPunto(p.id)}
+                  />
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
         <TextInput
           value={busqueda}
           onChangeText={setBusqueda}
@@ -141,6 +172,10 @@ export function PantallaCobro(props: {
 
   const confirmar = () => {
     const items = convertirLineas(props.carrito);
+    if (diaCerrado(db, hoyLocal())) {
+      setMensaje("El día de hoy ya está cerrado y entregado. No se pueden registrar más ventas.");
+      return;
+    }
     const check = validarExistencias(db, items);
     if (!check.ok) {
       setMensaje("No alcanzan las existencias: " + check.faltantes.map((f) => `${f.nombre} (hay ${f.disponible})`).join(", "));

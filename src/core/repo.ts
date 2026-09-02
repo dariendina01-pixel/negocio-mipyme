@@ -21,7 +21,7 @@ import { aplicarPaquete } from "./sync/merge";
 import { parsearPaquete, nombreArchivoPaquete } from "./sync/package";
 
 const SECCIONES_PRODUCTOS = ["version", "ultima_modificacion", "meta", "productos", "config"] as const;
-const SECCIONES_VENTAS = ["ventas", "gastos", "recepciones", "arqueos", "cierres"] as const;
+const SECCIONES_VENTAS = ["ventas", "devoluciones", "gastos", "recepciones", "arqueos", "cierres"] as const;
 
 export class Repo {
   private storeProductos: JsonStore<DependienteDb>;
@@ -62,6 +62,7 @@ export class Repo {
       ...productos,
       meta,
       ventas: ventas.ventas ?? [],
+      devoluciones: ventas.devoluciones ?? [],
       gastos: ventas.gastos ?? [],
       recepciones: ventas.recepciones ?? [],
       arqueos: ventas.arqueos ?? [],

@@ -8,7 +8,7 @@ import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, Boton, Aviso, Campo } from "../../ui/components";
 import { crearPaqueteProductos, crearPaqueteConfig } from "../../core/sync/builders";
-import { dirDatos, exportarYCompartir, seleccionarArchivoRespaldo, puenteWifi, compartirTexto } from "../helpersRN";
+import { dirDatos, exportarYCompartir, seleccionarArchivoRespaldo, puenteWifi, guardarJsonEnCarpeta } from "../helpersRN";
 import { adapterExpo } from "../../core/fs/fs_expo";
 import { serializarJson } from "../../core/fs";
 import { aplicarPaquete } from "../../core/sync/merge";
@@ -87,17 +87,16 @@ export function SincronizarGestion() {
     try {
       const texto = serializarJson(db);
       const fecha = new Date().toISOString().slice(0, 10);
-      const nombre = await compartirTexto(
+      const res = await guardarJsonEnCarpeta(
         "gestion",
         `respaldo_gestion_${fecha}.json`,
-        texto,
-        "Exportar respaldo de la gestión (JSON)"
+        texto
       );
       setMensaje({
-        texto: nombre
-          ? "Respaldo exportado con toda la información. Guárdalo o compártelo."
-          : "No se pudo compartir el respaldo.",
-        tipo: "ok",
+        texto: res.ok
+          ? res.mensaje + " Se guardó también una copia local."
+          : "No se pudo exportar el respaldo: " + res.mensaje,
+        tipo: res.ok ? "ok" : "error",
       });
     } catch (e) {
       setMensaje({ texto: "Error al exportar respaldo: " + String(e), tipo: "error" });

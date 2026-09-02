@@ -9,16 +9,18 @@ import { BarraTabs } from "../../ui/nav";
 import { PantallaVenta, PantallaCobro } from "./Venta";
 import { Calculadora } from "./Calculadora";
 import { PantallaDia } from "./Dia";
+import { PantallaDevoluciones } from "./Devoluciones";
 import { SincronizarDependiente } from "./Sincronizar";
 import type { LineaCarrito } from "./modelo";
 
-type Pestana = "venta" | "cobro" | "calculadora" | "dia" | "sync";
+type Pestana = "venta" | "cobro" | "calculadora" | "dia" | "devoluciones" | "sync";
 
 const PESTANAS: { clave: Pestana; etiqueta: string }[] = [
   { clave: "venta", etiqueta: "Venta" },
   { clave: "cobro", etiqueta: "Cobro" },
   { clave: "calculadora", etiqueta: "Calc." },
   { clave: "dia", etiqueta: "Día" },
+  { clave: "devoluciones", etiqueta: "Dev." },
   { clave: "sync", etiqueta: "Sync" },
 ];
 
@@ -61,6 +63,7 @@ export function AppDependiente({ onCambiarApp }: { onCambiarApp: () => void }) {
       )}
       {pestana === "calculadora" && <Calculadora />}
       {pestana === "dia" && <PantallaDia />}
+      {pestana === "devoluciones" && <PantallaDevoluciones />}
       {pestana === "sync" && <SincronizarDependiente />}
 
       <View style={{ marginBottom: 56 }} />

@@ -27,6 +27,7 @@ test("registrarVenta descuenta stock y registra", () => {
     recibidoCents: 20000, // 200,00
     fecha: dia + "T10:00:00Z",
   });
+  assert.ok(v);
   assert.equal(v.totalCents, 20000);
   assert.equal(v.cambioCents, 0);
   assert.equal(db.productos[0].stock, 96);

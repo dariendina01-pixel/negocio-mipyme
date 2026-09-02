@@ -7,7 +7,7 @@ import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, Boton, Campo, Aviso, SinDatos, TecladoNumerico, aFormato } from "../../ui/components";
 import { fmtMoneda } from "../../core/money";
-import { registrarGasto, registrarRecepcionDirecta, resumenDia } from "../../core/operations";
+import { registrarGasto, registrarRecepcionDirecta, resumenDia, diaCerrado } from "../../core/operations";
 import { hoyLocal } from "../../core/folio";
 
 type Seccion = "gastos" | "mercancia" | "resumen";
@@ -54,6 +54,7 @@ function GastosDelDia() {
     const montoC = parseInt(monto.replace(/[^\d]/g, "") || "0", 10);
     if (!concepto.trim()) return setError("Escribe el concepto del gasto.");
     if (montoC <= 0) return setError("El monto debe ser mayor que 0.");
+    if (diaCerrado(db, hoyLocal())) return setError("El día de hoy ya está cerrado y entregado.");
     mutarDep((d) =>
       registrarGasto(d, {
         punto: d.meta.punto || d.meta.puntoNombre || d.meta.dispositivo,

@@ -5,8 +5,8 @@ import React, { useState } from "react";
 import { View, Text, FlatList, Pressable, TextInput } from "react-native";
 import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
-import { Tarjeta, Boton, Campo, Aviso, SinDatos, TecladoNumerico, PantallaConTeclado, aFormato } from "../../ui/components";
-import { fmtMoneda, aCentavos } from "../../core/money";
+import { Tarjeta, Boton, Campo, Aviso, SinDatos, PantallaConTeclado } from "../../ui/components";
+import { fmtMoneda, aCentavos, fmt } from "../../core/money";
 import { nuevoProducto, productoTieneEntrada } from "../../core/operations";
 import type { ProductoGestion, TipoEntrada, UnidadMedida } from "../../core/types";
 import { UNIDADES_MEDIDA } from "../../core/types";
@@ -127,7 +127,7 @@ function EditorProducto(props: {
   // Distribución de la entrada nueva: clave destino -> unidades
   const [distribucion, setDistribucion] = useState<Record<string, string>>({});
   const [precio, setPrecio] = useState(
-    props.producto.precioCents ? aFormato(String(props.producto.precioCents)) : ""
+    props.producto.precioCents ? fmt(props.producto.precioCents) : ""
   );
   const [error, setError] = useState("");
 
@@ -262,8 +262,14 @@ function EditorProducto(props: {
           <Aviso texto="Registra una entrada de mercancía (compra, beneficiario o consignación) para habilitar el precio de venta." />
         ) : (
           <>
+            <Campo
+              etiqueta="Precio de venta (en pesos)"
+              valor={precio}
+              onChange={setPrecio}
+              teclado="decimal-pad"
+              placeholder="Ej: 1500 o 1234,50"
+            />
             <Text style={estilos.montoGrande}>{fmtMoneda(aCentavos(precio))}</Text>
-            <TecladoNumerico valor={precio} onCambiar={(t) => setPrecio(t)} />
           </>
         )}
 

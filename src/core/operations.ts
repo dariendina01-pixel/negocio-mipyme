@@ -5,9 +5,11 @@ import {
   DependienteDb,
   GestionDb,
   Venta,
+  Devolucion,
   Gasto,
   Recepcion,
   Arqueo,
+  Cierre,
   LineaVenta,
   ProductoGestion,
 } from "./types";
@@ -44,8 +46,10 @@ export function validarExistencias(db: DependienteDb, items: LineaVenta[]): {
 }
 
 /** Crea y registra una venta descontando existencias. */
-export function registrarVenta(db: DependienteDb, args: RegistroVentaArgs): Venta {
+export function registrarVenta(db: DependienteDb, args: RegistroVentaArgs): Venta | null {
   const fecha = args.fecha ?? new Date().toISOString();
+  const dia = fecha.slice(0, 10);
+  if (diaCerrado(db, dia)) return null; // día entregado = inmutable
   const subtotalCents = subtotal(args.items);
   const totalCents = aplicarDescuento(subtotalCents, args.descuentoPorciento ?? 0);
   const cobro = calcularCobro(totalCents, args.recibidoCents ?? 0);
@@ -69,6 +73,46 @@ export function registrarVenta(db: DependienteDb, args: RegistroVentaArgs): Vent
   }
   db.ultima_modificacion = new Date().toISOString();
   return venta;
+}
+
+// ---------------- DEVOLUCIONES (dependiente) ----------------
+
+export interface RegistrarDevolucionArgs {
+  punto: string;
+  productoId: string;
+  nombre: string;
+  cantidad: number;
+  precioCents: Centavos;
+  motivo?: string;
+  fecha?: string;
+}
+
+/**
+ * Registra una devolución: devuelve las unidades al inventario (stock +) y
+ * resta el monto al total de ventas del día (monto negativo).
+ */
+export function registrarDevolucion(db: DependienteDb, args: RegistrarDevolucionArgs): Devolucion | null {
+  if (args.cantidad <= 0) return null;
+  const fecha = args.fecha ?? new Date().toISOString();
+  if (diaCerrado(db, fecha.slice(0, 10))) return null; // día entregado = inmutable
+  const prod = db.productos.find((p) => p.id === args.productoId);
+  if (prod) prod.stock = (prod.stock ?? 0) + args.cantidad;
+  const monto = Math.round(args.precioCents * args.cantidad);
+  const devolucion: Devolucion = {
+    id: "D-" + v4(),
+    folio: db.devoluciones.length + 1,
+    punto: args.punto,
+    fecha,
+    productoId: args.productoId,
+    nombre: args.nombre,
+    cantidad: args.cantidad,
+    precioCents: args.precioCents,
+    montoCents: -monto,
+    motivo: args.motivo,
+  };
+  db.devoluciones.push(devolucion);
+  db.ultima_modificacion = new Date().toISOString();
+  return devolucion;
 }
 
 /** Lista de productos "añadibles" al carrito (los agotados desaparecen). */
@@ -95,12 +139,14 @@ export interface RegistrarGastoArgs {
   fecha?: string;
 }
 
-export function registrarGasto(db: DependienteDb, args: RegistrarGastoArgs): Gasto {
+export function registrarGasto(db: DependienteDb, args: RegistrarGastoArgs): Gasto | null {
+  const fecha = args.fecha ?? new Date().toISOString();
+  if (diaCerrado(db, fecha.slice(0, 10))) return null; // día entregado = inmutable
   const gasto: Gasto = {
     id: "G-" + v4(),
     folio: db.gastos.length + 1,
     punto: args.punto,
-    fecha: args.fecha ?? new Date().toISOString(),
+    fecha,
     concepto: args.concepto,
     montoCents: args.montoCents,
   };
@@ -175,6 +221,7 @@ export interface ResumenDia {
 /** Resumen de un día completo (para el cierre y para el dueño). */
 export function resumenDia(db: DependienteDb, dia: string): ResumenDia {
   const ventasDelDia = db.ventas.filter((v) => v.fecha.slice(0, 10) === dia);
+  const devolucionesDelDia = db.devoluciones.filter((d) => d.fecha.slice(0, 10) === dia);
   const gastosDelDia = db.gastos.filter((g) => g.fecha.slice(0, 10) === dia);
   const detalle = new Map<string, { unidades: number; montoCents: Centavos }>();
   for (const v of ventasDelDia) {
@@ -186,13 +233,24 @@ export function resumenDia(db: DependienteDb, dia: string): ResumenDia {
       detalle.set(item.nombre, actual);
     }
   }
+  // Las devoluciones restan unidades y monto por producto
+  for (const dev of devolucionesDelDia) {
+    const actual = detalle.get(dev.nombre) ?? { unidades: 0, montoCents: 0 };
+    actual.unidades -= dev.cantidad;
+    actual.montoCents += dev.montoCents; // negativo
+    detalle.set(dev.nombre, actual);
+  }
+  const unidadesVendidas = ventasDelDia.reduce((a, v) => a + v.items.reduce((s, i) => s + i.cantidad, 0), 0);
+  const unidadesDevueltas = devolucionesDelDia.reduce((a, d) => a + d.cantidad, 0);
+  const totalVentas = ventasDelDia.reduce((a, v) => a + v.totalCents, 0) + devolucionesDelDia.reduce((a, d) => a + d.montoCents, 0);
+  const totalGastos = gastosDelDia.reduce((a, g) => a + g.montoCents, 0);
   return {
     dia,
     ventas: ventasDelDia.length,
-    unidades: ventasDelDia.reduce((a, v) => a + v.items.reduce((s, i) => s + i.cantidad, 0), 0),
-    totalVentasCents: ventasDelDia.reduce((a, v) => a + v.totalCents, 0),
-    totalGastosCents: gastosDelDia.reduce((a, g) => a + g.montoCents, 0),
-    esperadoCajaCents: ventasDelDia.reduce((a, v) => a + v.totalCents, 0) - gastosDelDia.reduce((a, g) => a + g.montoCents, 0),
+    unidades: unidadesVendidas - unidadesDevueltas,
+    totalVentasCents: totalVentas,
+    totalGastosCents: totalGastos,
+    esperadoCajaCents: totalVentas - totalGastos,
     detalleProductos: [...detalle.entries()].map(([nombre, v]) => ({
       producto: nombre,
       unidades: v.unidades,
@@ -224,8 +282,61 @@ export function textoCierre(info: InfoCierre): string {
   return lineas.join("\n");
 }
 
-// ---------------- GESTIÓN: envío de mercancía a un punto ----------------
+// ---------------- CIERRE DE DÍA (dependiente) ----------------
 
+/** Devuelve el cierre del día indicado si ya existe (null si no). */
+export function cierreDeDia(db: DependienteDb, dia: string): Cierre | null {
+  return db.cierres.find((c) => c.fecha === dia) ?? null;
+}
+
+/** ¿El día ya está cerrado y entregado (inmutable)? */
+export function diaCerrado(db: DependienteDb, dia: string): boolean {
+  return cierreDeDia(db, dia)?.entregado === true;
+}
+
+/**
+ * Registra el cierre del día del punto. La primera vez queda como "pendiente";
+ * al marcarlo `entregado` se vuelve inmutable (no se pueden modificar los
+ * datos del día en el dependiente).
+ */
+export function registrarCierre(db: DependienteDb, dia: string): Cierre {
+  const existente = cierreDeDia(db, dia);
+  if (existente) return existente;
+  const resumen = resumenDia(db, dia);
+  const cierre: Cierre = {
+    id: "CIE-" + v4(),
+    punto: db.meta.punto || db.meta.puntoNombre || db.meta.dispositivo,
+    fecha: dia,
+    totalVentasCents: resumen.totalVentasCents,
+    unidadesVendidas: resumen.unidades,
+    totalGastosCents: resumen.totalGastosCents,
+    entradasMercancia: db.recepciones
+      .filter((r) => r.fecha.slice(0, 10) === dia)
+      .reduce((a, r) => a + r.items.reduce((s, i) => s + i.cantidad, 0), 0),
+    arqueoCents: db.arqueos
+      .filter((a) => a.fecha.slice(0, 10) === dia)
+      .reduce((a2, x) => a2 + x.totalCents, 0),
+    numVentas: resumen.ventas,
+    exportado: false,
+    entregado: false,
+    generado: new Date().toISOString(),
+  };
+  db.cierres.push(cierre);
+  db.ultima_modificacion = new Date().toISOString();
+  return cierre;
+}
+
+/** Marca el cierre del día como entregado (inmutable). Sin efecto si ya está entregado. */
+export function marcarCierreEntregado(db: DependienteDb, dia: string): Cierre | null {
+  const cierre = cierreDeDia(db, dia);
+  if (!cierre || cierre.entregado) return cierre ?? null;
+  cierre.entregado = true;
+  cierre.exportado = true;
+  db.ultima_modificacion = new Date().toISOString();
+  return cierre;
+}
+
+// ---------------- GESTIÓN: envío de mercancía a un punto ----------------
 export interface EnvioMercanciaArgs {
   gestion: GestionDb;
   puntoId: string;
@@ -275,10 +386,58 @@ export function enviarMercanciaAPunto(args: EnvioMercanciaArgs): Recepcion {
   return recepcion;
 }
 
+// ---------------- GESTIÓN: ajuste de inventario ----------------
+
+export type TipoAjusteInventario = "faltante" | "sobrante" | "deterioro";
+
+export interface AjusteInventarioArgs {
+  gestion: GestionDb;
+  productoId: string;
+  ubicacion: string; // "bodega" o id de punto
+  tipo: TipoAjusteInventario;
+  cantidad: number; // unidades (positivas)
+  motivo?: string;
+  fecha?: string;
+}
+
+/**
+ * Registra un ajuste de inventario (faltante/sobrante/deterioro) en una
+ * ubicación concreta, modifica las existencias y deja constancia en el
+ * historial de movimientos (inmutable una vez registrado).
+ */
+export function registrarAjusteInventario(args: AjusteInventarioArgs): boolean {
+  const fecha = args.fecha ?? new Date().toISOString();
+  const cantidad = args.cantidad || 0;
+  if (cantidad <= 0) return false;
+  const prod = args.gestion.productos.find((p) => p.id === args.productoId);
+  if (!prod) return false;
+
+  const actual = prod.inventario[args.ubicacion] ?? 0;
+  let delta = 0;
+  if (args.tipo === "sobrante") {
+    delta = cantidad; // sobra mercancía -> suma
+  } else {
+    // faltante o deterioro -> resta (sin pasar de 0)
+    delta = -Math.min(cantidad, actual);
+  }
+  prod.inventario[args.ubicacion] = Math.max(0, actual + delta);
+
+  args.gestion.movimientosInventario.push({
+    id: "MOV-" + v4(),
+    fecha,
+    tipo: "AJUSTE",
+    productoId: args.productoId,
+    punto: args.ubicacion,
+    cantidad: delta,
+    referencia: args.tipo,
+  });
+  args.gestion.ultima_modificacion = fecha;
+  return true;
+}
+
 // ---------------- GESTIÓN: dashboard ----------------
 
-export interface DashboardGestion {
-  totalPuntos: number;
+export interface DashboardGestion {  totalPuntos: number;
   totalProductos: number;
   ventasTotales: Centavos;
   numVentas: number;
@@ -297,15 +456,23 @@ export function dashboardGestion(db: GestionDb): DashboardGestion {
     actual.numVentas += 1;
     porPunto.set(nombre, actual);
   }
+  for (const dev of db.devolucionesRecibidas) {
+    const nombre = db.puntos.find((p) => p.id === dev.punto)?.nombre ?? dev.punto;
+    const actual = porPunto.get(nombre) ?? { punto: nombre, ventas: 0, numVentas: 0 };
+    actual.ventas += dev.montoCents; // negativo
+    porPunto.set(nombre, actual);
+  }
+  const devTotal = db.devolucionesRecibidas.reduce((a, d) => a + d.montoCents, 0);
+  const devUnidades = db.devolucionesRecibidas.reduce((a, d) => a + d.cantidad, 0);
   return {
     totalPuntos: db.puntos.length,
     totalProductos: db.productos.length,
-    ventasTotales: db.ventasRecibidas.reduce((a, v) => a + v.totalCents, 0),
+    ventasTotales: db.ventasRecibidas.reduce((a, v) => a + v.totalCents, 0) + devTotal,
     numVentas: db.ventasRecibidas.length,
     unidadesVendidas: db.ventasRecibidas.reduce(
       (a, v) => a + v.items.reduce((s, i) => s + i.cantidad, 0),
       0
-    ),
+    ) - devUnidades,
     gastosTotales: db.gastosRecibidos.reduce((a, g) => a + g.montoCents, 0),
     porPunto: [...porPunto.values()],
     movimientosRecientes: db.movimientosInventario.length,

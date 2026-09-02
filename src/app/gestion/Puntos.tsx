@@ -53,79 +53,86 @@ export function PuntosGestion() {
     setEditando(null);
   };
 
+  if (creando) {
+    return (
+      <PantallaConTeclado>
+        <Tarjeta>
+          <Text style={estilos.titulo}>Nuevo punto de venta</Text>
+          {error ? <Aviso texto={error} tipo="error" /> : null}
+          <Campo
+            etiqueta="Nombre del punto"
+            valor={nombre}
+            onChange={setNombre}
+            placeholder="Ej: Caja 1, Local, Puesto de la esquina…"
+            autoFocus
+          />
+          <View style={[estilos.fila, { gap: 10 }]}>
+            <View style={{ flex: 1 }}>
+              <Boton texto="Cancelar" variante="secundario" onPress={() => { setCreando(false); setNombre(""); setError(""); }} />
+            </View>
+            <View style={{ flex: 2 }}>
+              <Boton texto="Guardar punto" onPress={guardarNuevo} grande />
+            </View>
+          </View>
+        </Tarjeta>
+      </PantallaConTeclado>
+    );
+  }
+
+  if (editando) {
+    return (
+      <PantallaConTeclado>
+        <Tarjeta>
+          <Text style={estilos.titulo}>Editar punto</Text>
+          {error ? <Aviso texto={error} tipo="error" /> : null}
+          <Campo etiqueta="Nombre" valor={nombre} onChange={setNombre} />
+          <View style={[estilos.fila, { gap: 10 }]}>
+            <View style={{ flex: 1 }}>
+              <Boton texto="Cancelar" variante="secundario" onPress={() => { setEditando(null); setNombre(""); setError(""); }} />
+            </View>
+            <View style={{ flex: 2 }}>
+              <Boton texto="Guardar" onPress={() => renombrar(editando)} />
+            </View>
+          </View>
+          <View style={{ marginTop: 10 }}>
+            <Boton texto="Eliminar punto" variante="peligro" onPress={() => borrar(editando)} />
+          </View>
+        </Tarjeta>
+      </PantallaConTeclado>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <View style={estilos.contenido}>
-        {error ? <Aviso texto={error} tipo="error" /> : null}
-
-        {creando ? (
-          <PantallaConTeclado>
-            <Tarjeta>
-              <Text style={estilos.titulo}>Nuevo punto de venta</Text>
-              <Campo etiqueta="Nombre del punto" valor={nombre} onChange={setNombre} placeholder="Ej: Caja 1, Local, Puesto de la esquina…" />
-              <View style={[estilos.fila, { gap: 10 }]}>
-                <View style={{ flex: 1 }}>
-                  <Boton texto="Cancelar" variante="secundario" onPress={() => { setCreando(false); setNombre(""); setError(""); }} />
-                </View>
-                <View style={{ flex: 2 }}>
-                  <Boton texto="Guardar punto" onPress={guardarNuevo} grande />
-                </View>
-              </View>
-            </Tarjeta>
-          </PantallaConTeclado>
-        ) : (
-          <>
-            <Boton texto="+ Nuevo punto de venta" onPress={() => setCreando(true)} />
-
-            {editando ? (
-              <PantallaConTeclado>
-                <Tarjeta>
-                  <Text style={estilos.titulo}>Editar punto</Text>
-                  <Campo etiqueta="Nombre" valor={nombre} onChange={setNombre} />
-                  <View style={[estilos.fila, { gap: 10 }]}>
-                    <View style={{ flex: 1 }}>
-                      <Boton texto="Cancelar" variante="secundario" onPress={() => setEditando(null)} />
-                    </View>
-                    <View style={{ flex: 2 }}>
-                      <Boton texto="Guardar" onPress={() => renombrar(editando)} />
-                    </View>
+        <Boton texto="+ Nuevo punto de venta" onPress={() => { setError(""); setCreando(true); }} />
+        <FlatList
+          data={puntos}
+          keyExtractor={(p) => p.id}
+          style={{ marginTop: 10 }}
+          ListEmptyComponent={<SinDatos texto="Aún no hay puntos de venta. Crea uno para empezar." />}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => {
+                setEditando(item.id);
+                setNombre(item.nombre);
+                setError("");
+              }}
+            >
+              <Tarjeta>
+                <View style={[estilos.fila]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={estilos.titulo}>{item.nombre}</Text>
+                    <Text style={estilos.subtitulo}>
+                      {db.ventasRecibidas.filter((v) => v.punto === item.id).length} ventas recibidas
+                    </Text>
                   </View>
-                  <View style={{ marginTop: 10 }}>
-                    <Boton texto="Eliminar punto" variante="peligro" onPress={() => borrar(editando)} />
-                  </View>
-                </Tarjeta>
-              </PantallaConTeclado>
-            ) : (
-              <FlatList
-                data={puntos}
-                keyExtractor={(p) => p.id}
-                style={{ marginTop: 10 }}
-                ListEmptyComponent={<SinDatos texto="Aún no hay puntos de venta. Crea uno para empezar." />}
-                renderItem={({ item }) => (
-                  <Pressable
-                    onPress={() => {
-                      setEditando(item.id);
-                      setNombre(item.nombre);
-                      setError("");
-                    }}
-                  >
-                    <Tarjeta>
-                      <View style={[estilos.fila]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={estilos.titulo}>{item.nombre}</Text>
-                          <Text style={estilos.subtitulo}>
-                            {db.ventasRecibidas.filter((v) => v.punto === item.id).length} ventas recibidas
-                          </Text>
-                        </View>
-                        <Text style={{ color: colores.textoSuave }}>editar ›</Text>
-                      </View>
-                    </Tarjeta>
-                  </Pressable>
-                )}
-              />
-            )}
-          </>
-        )}
+                  <Text style={{ color: colores.textoSuave }}>editar ›</Text>
+                </View>
+              </Tarjeta>
+            </Pressable>
+          )}
+        />
       </View>
     </View>
   );

@@ -43,7 +43,7 @@ export function nombreArchivoPaquete(p: Paquete): string {
 export function parsearPaquete(texto: string): Paquete {
   const obj = JSON.parse(texto) as Paquete;
   if (!obj || obj.formato !== FORMATO_PAQUETE || !obj.tipo || !obj.paqueteId) {
-    throw new Error("El archivo no es un paquete de sincronización válido de NegocioEnCasa.");
+    throw new Error("El archivo no es un paquete de sincronización válido de Negocio - Mipyme.");
   }
   return obj;
 }

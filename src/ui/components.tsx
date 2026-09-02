@@ -76,6 +76,7 @@ export function Campo(props: {
   teclado?: "default" | "numeric" | "decimal-pad" | "phone-pad";
   placeholder?: string;
   multiline?: boolean;
+  autoFocus?: boolean;
 }) {
   return (
     <View style={{ marginBottom: 12 }}>
@@ -86,6 +87,7 @@ export function Campo(props: {
         keyboardType={props.teclado ?? "default"}
         placeholder={props.placeholder}
         multiline={props.multiline}
+        autoFocus={props.autoFocus}
         style={[estilos.cajaInput, props.multiline && { minHeight: 64, textAlignVertical: "top" }]}
       />
     </View>

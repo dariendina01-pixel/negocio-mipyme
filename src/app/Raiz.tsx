@@ -48,7 +48,7 @@ export function Raiz(props: { onElegir: (rol: Rol) => void; onCargado: () => voi
   return (
     <View style={{ flex: 1, backgroundColor: colores.fondo }}>
       <View style={{ backgroundColor: colores.primario, alignItems: "center", paddingTop: 80, paddingHorizontal: 20, paddingBottom: 40 }}>
-        <Text style={{ color: colores.blanco, fontSize: 26, fontWeight: "900" }}>Negocio en Casa</Text>
+        <Text style={{ color: colores.blanco, fontSize: 26, fontWeight: "900" }}>Negocio - Mipyme</Text>
         <Text style={{ color: "#CFE8DD", fontSize: 14, marginTop: 4, textAlign: "center" }}>
           Ventas, inventario y caja en tus manos
         </Text>

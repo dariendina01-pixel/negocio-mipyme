@@ -14,6 +14,7 @@ import {
   Producto,
   ProductoGestion,
   Venta,
+  Devolucion,
   Gasto,
   Arqueo,
   Recepcion,
@@ -102,11 +103,13 @@ export function crearPaqueteVentas(
 ): Paquete {
   const marcas = {
     ventas: marcaActual(db, "ventas"),
+    devoluciones: marcaActual(db, "devoluciones"),
     gastos: marcaActual(db, "gastos"),
     recepciones: marcaActual(db, "recepciones"),
     arqueos: marcaActual(db, "arqueos"),
   };
   const nuevasVentas = db.ventas.slice(marcas.ventas);
+  const nuevasDevoluciones = db.devoluciones.slice(marcas.devoluciones);
   const nuevosGastos = db.gastos.slice(marcas.gastos);
   // Las recepciones originadas por la gestión (envío de mercancía) ya fueron
   // aplicadas a su inventario en la gestión: no se vuelven a reportar.
@@ -117,6 +120,7 @@ export function crearPaqueteVentas(
 
   const cont = {
     ventas: nuevasVentas as Venta[],
+    devoluciones: nuevasDevoluciones as Devolucion[],
     gastos: nuevosGastos as Gasto[],
     recepciones: nuevosRecepciones as Recepcion[],
     arqueos: nuevosArqueos as Arqueo[],
@@ -130,11 +134,12 @@ export function crearPaqueteVentas(
     tipo: "VENTAS",
     destino: "gestion",
     contendido: cont,
-    resumen: `${nuevasVentas.length} ventas, ${nuevosGastos.length} gastos`,
+    resumen: `${nuevasVentas.length} ventas, ${nuevasDevoluciones.length} devoluciones, ${nuevosGastos.length} gastos`,
   });
 
   if (opts.marcar !== false) {
     actualizarMarca(db, "ventas", db.ventas.length);
+    actualizarMarca(db, "devoluciones", db.devoluciones.length);
     actualizarMarca(db, "gastos", db.gastos.length);
     actualizarMarca(db, "recepciones", db.recepciones.length);
     actualizarMarca(db, "arqueos", db.arqueos.length);
