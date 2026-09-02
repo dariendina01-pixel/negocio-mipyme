@@ -17,7 +17,7 @@ import { productosDisponibles, registrarVenta, validarExistencias, diaCerrado } 
 import { desgloseCambio } from "../../core/denominations";
 import { hoyLocal } from "../../core/folio";
 import type { LineaCarrito } from "./modelo";
-import { cambiarCantidad, quitarLinea, totalCarrito, convertirLineas } from "./modelo";
+import { cambiarCantidad, quitarLinea, fijarCantidad, totalCarrito, convertirLineas } from "./modelo";
 
 export function PantallaVenta(props: {
   carrito: LineaCarrito[];
@@ -79,19 +79,51 @@ export function PantallaVenta(props: {
           style={{ marginTop: 10, flex: 1 }}
           contentContainerStyle={{ paddingBottom: 12 }}
           ListEmptyComponent={<SinDatos texto="No hay productos disponibles. Recibe la lista de precios en Sincronizar." />}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => props.onCambiarCarrito(cambiarCantidad(props.carrito, item, 1))}
-              style={({ pressed }) => [
-                s.producto,
-                { flex: 1, maxWidth: "48%" },
-                pressed && { backgroundColor: colores.primarioClaro },
-              ]}
-            >
-              <Text style={s.productoNombre} numberOfLines={2}>{item.nombre}</Text>
-              <Text style={s.productoPrecio}>{fmtMoneda(item.precioCents)}</Text>
-            </Pressable>
-          )}
+          renderItem={({ item }) => {
+            const actual = props.carrito.find((l) => l.producto.id === item.id)?.cantidad ?? 0;
+            const escrito = actual > 0 ? String(actual) : "";
+            return (
+              <View style={[s.producto, { flex: 1, maxWidth: "48%" }]}>
+                <Pressable
+                  onPress={() => props.onCambiarCarrito(cambiarCantidad(props.carrito, item, 1))}
+                  style={({ pressed }) => [
+                    { flex: 1 },
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <Text style={s.productoNombre} numberOfLines={2}>{item.nombre}</Text>
+                  <Text style={s.productoPrecio}>{fmtMoneda(item.precioCents)}</Text>
+                  <Text style={s.productoStock}>
+                    {item.stock > 0 ? `Disponible: ${item.stock}` : "Agotado"}
+                  </Text>
+                </Pressable>
+                <View style={[estilos.fila, { gap: 6, marginTop: 6 }]}>
+                  <Pressable
+                    onPress={() => props.onCambiarCarrito(cambiarCantidad(props.carrito, item, -1))}
+                    style={s.botonCantidad}
+                  >
+                    <Text style={s.masMenos}>−</Text>
+                  </Pressable>
+                  <TextInput
+                    value={escrito}
+                    onChangeText={(t) => {
+                      const n = parseInt(t.replace(/[^\d]/g, ""), 10) || 0;
+                      props.onCambiarCarrito(fijarCantidad(props.carrito, item, n));
+                    }}
+                    keyboardType="number-pad"
+                    selectTextOnFocus
+                    style={[s.cantidadInput, actual > 0 && { borderColor: colores.primario }]}
+                  />
+                  <Pressable
+                    onPress={() => props.onCambiarCarrito(cambiarCantidad(props.carrito, item, 1))}
+                    style={s.botonCantidad}
+                  >
+                    <Text style={s.masMenos}>+</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }}
         />
       </View>
 
@@ -300,6 +332,31 @@ const s = {
   },
   productoNombre: { fontSize: 14, fontWeight: "600", color: colores.texto },
   productoPrecio: { fontSize: 15, fontWeight: "800", color: colores.primario, marginTop: 6 },
+  productoStock: { fontSize: 12, color: colores.textoSuave, marginTop: 4 },
+  botonCantidad: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colores.blanco,
+  },
+  cantidadInput: {
+    flex: 1,
+    height: 30,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    borderRadius: 6,
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "700",
+    color: colores.texto,
+    backgroundColor: colores.blanco,
+    paddingVertical: 0,
+    paddingHorizontal: 4,
+  },
   panelCarrito: {
     backgroundColor: colores.blanco,
     borderTopWidth: 1,

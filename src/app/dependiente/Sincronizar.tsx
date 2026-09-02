@@ -78,6 +78,20 @@ export function SincronizarDependiente() {
   const importarArchivo = async () => {
     setOcupado(true);
     try {
+      // Bloqueo de seguridad: mientras haya un día abierto (base cargada y no
+      // entregada), no se permite importar otra base para no pisar el día en curso.
+      const baseFecha = db.meta.baseProductos?.fecha ?? "";
+      const hayBaseCargada = !!baseFecha || (db.meta.baseProductos?.folio ?? 0) > 0;
+      const diaAbierto = hayBaseCargada && !diaCerrado(db, baseFecha);
+      if (diaAbierto) {
+        setMensaje({
+          texto:
+            `Ya tienes un día abierto (base del ${baseFecha}). ` +
+            "Para importar otra base, primero cierra el día y exporta las ventas en Sync → Cerrar día.",
+          tipo: "error",
+        });
+        return;
+      }
       const res = await seleccionarArchivoRespaldo();
       if (!res.ok) {
         setMensaje({ texto: res.mensaje });
@@ -146,39 +160,47 @@ export function SincronizarDependiente() {
   };
 
   const cerrarDia = async () => {
-    // Registrar cierre (primera vez) y marcarlo entregado (inmutable)
-    const cierre = registrarCierre(db, dia);
-    marcarCierreEntregado(db, dia);
-    await guardarDep();
+    setOcupado(true);
+    try {
+      // Registrar cierre (primera vez) y marcarlo entregado (inmutable)
+      const cierre = registrarCierre(db, dia);
+      marcarCierreEntregado(db, dia);
+      await guardarDep();
 
-    const resumen_ = resumenDia(db, dia);
-    const objetoCierre = {
-      tipo: "CIERRE_ENTREGADO",
-      version: 1,
-      negocio: "Negocio - Mipyme",
-      punto: db.meta.puntoNombre || db.meta.punto || db.meta.dispositivo,
-      dispositivo: db.meta.dispositivo,
-      dia,
-      cierre,
-      resumen: resumen_,
-      ventas: db.ventas.filter((v) => v.fecha.slice(0, 10) === dia),
-      devoluciones: db.devoluciones.filter((d) => d.fecha.slice(0, 10) === dia),
-      gastos: db.gastos.filter((g) => g.fecha.slice(0, 10) === dia),
-      generado: new Date().toISOString(),
-      inmutable: true,
-    };
-    const texto = serializarJson(objetoCierre);
-    const res = await guardarJsonEnCarpeta("dependiente", `cierre_entregado_${dia}.json`, texto);
-    // También texto legible para enviar por WhatsApp
-    const txtResumen = textoCierre({ dia, resumen: resumen_ });
-    await compartirTexto("dependiente", "cierre_" + dia + ".txt", txtResumen, "Cierre del día");
+      const resumen_ = resumenDia(db, dia);
+      const objetoCierre = {
+        tipo: "CIERRE_ENTREGADO",
+        version: 1,
+        negocio: "Negocio - Mipyme",
+        punto: db.meta.puntoNombre || db.meta.punto || db.meta.dispositivo,
+        dispositivo: db.meta.dispositivo,
+        dia,
+        cierre,
+        resumen: resumen_,
+        ventas: db.ventas.filter((v) => v.fecha.slice(0, 10) === dia),
+        devoluciones: db.devoluciones.filter((d) => d.fecha.slice(0, 10) === dia),
+        gastos: db.gastos.filter((g) => g.fecha.slice(0, 10) === dia),
+        generado: new Date().toISOString(),
+        inmutable: true,
+      };
+      const texto = serializarJson(objetoCierre);
+      const res = await guardarJsonEnCarpeta("dependiente", `cierre_entregado_${dia}.json`, texto);
+      // También texto legible para enviar por WhatsApp
+      const txtResumen = textoCierre({ dia, resumen: resumen_ });
+      const nombreTxt = await compartirTexto("dependiente", "cierre_" + dia + ".txt", txtResumen, "Cierre del día");
 
-    setMensaje({
-      texto: res.ok
-        ? "Día cerrado y ENTREGADO. El archivo del cierre es inmutable. " + res.mensaje
-        : "Cierre generado pero no se pudo guardar en carpeta: " + res.mensaje,
-      tipo: res.ok ? "ok" : "error",
-    });
+      setMensaje({
+        texto: res.ok
+          ? "Día cerrado y ENTREGADO. El archivo del cierre es inmutable. " + res.mensaje +
+            (nombreTxt ? " Se abrió el resumen para enviarlo." : "")
+          : "Cierre generado pero no se pudo guardar en carpeta: " + res.mensaje,
+        tipo: res.ok ? "ok" : "error",
+      });
+    } catch (e) {
+      setMensaje({ texto: "Error al cerrar el día: " + String(e), tipo: "error" });
+    } finally {
+      setOcupado(false);
+    }
   };
 
   const enviarResumenWhatsaapp = async () => {

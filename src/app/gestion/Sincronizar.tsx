@@ -13,7 +13,8 @@ import { adapterExpo } from "../../core/fs/fs_expo";
 import { serializarJson } from "../../core/fs";
 import { aplicarPaquete } from "../../core/sync/merge";
 import { maxFolioRecibido } from "../../core/folio";
-import type { Paquete } from "../../core/types";
+import type { Paquete, GestionDb } from "../../core/types";
+import { plantillaGestion } from "../../core/types";
 import { fmtMoneda } from "../../core/money";
 
 export function SincronizarGestion() {
@@ -157,6 +158,46 @@ export function SincronizarGestion() {
     }
   };
 
+  const importarRespaldo = async () => {
+    setOcupado(true);
+    try {
+      const res = await seleccionarArchivoRespaldo();
+      if (!res.ok) {
+        setMensaje({ texto: res.mensaje });
+        return;
+      }
+      if (!res.texto) {
+        setMensaje({ texto: "El archivo no contiene texto.", tipo: "error" });
+        return;
+      }
+      const dato = JSON.parse(res.texto) as Partial<GestionDb> & Record<string, unknown>;
+      const arrays: (keyof GestionDb)[] = [
+        "productos", "puntos", "ventasRecibidas", "devolucionesRecibidas",
+        "gastosRecibidos", "recepcionesRecibidas", "arqueosRecibidos", "movimientosInventario",
+      ];
+      const esValido =
+        dato && typeof dato === "object" &&
+        typeof dato.meta === "object" && dato.meta !== null &&
+        typeof dato.config === "object" && dato.config !== null &&
+        arrays.every((k) => Array.isArray(dato[k]));
+      if (!esValido) {
+        setMensaje({ texto: "El archivo no es un respaldo de gestión válido.", tipo: "error" });
+        return;
+      }
+      const nueva = { ...plantillaGestion(), ...dato } as GestionDb;
+      nueva.config = { ...plantillaGestion().config, ...(dato.config as object) };
+      reemplazarGest(nueva);
+      setMensaje({
+        texto: `Respaldo restaurado: ${(nueva.productos as unknown[]).length} productos, ${(nueva.puntos ?? []).length} puntos, ${(nueva.ventasRecibidas ?? []).length} ventas.`,
+        tipo: "ok",
+      });
+    } catch (e) {
+      setMensaje({ texto: "No se pudo importar el respaldo: " + String(e), tipo: "error" });
+    } finally {
+      setOcupado(false);
+    }
+  };
+
   const sincronizarWifi = async () => {
     if (!urlPuente.trim()) {
       setWifiEstado("Escribe la dirección del puente (ej: http://192.168.1.10:4477).");
@@ -230,10 +271,15 @@ export function SincronizarGestion() {
 
       <Tarjeta>
         <Text style={estilos.titulo}>Respaldo completo</Text>
-        <Text style={estilos.subtitulo}>Exporta TODA la información de la gestión (productos, puntos, ventas, gastos, movimientos) como un solo archivo JSON.</Text>
+        <Text style={estilos.subtitulo}>Copia de seguridad de TODA la información de la gestión (productos, puntos, ventas, gastos, movimientos). Guárdalo fuera del teléfono por si se rompe o se pierde.</Text>
         <View style={{ marginTop: 10 }}>
           <Boton texto="Exportar respaldo JSON" onPress={exportarRespaldo} variante="acento" deshabilitado={ocupado} />
         </View>
+        <Text style={[estilos.subtitulo, { marginTop: 14 }]}>Para restaurar en un teléfono nuevo (o si se perdió la información), elige el respaldo que guardaste.</Text>
+        <View style={{ marginTop: 10 }}>
+          <Boton texto="Importar respaldo (restaurar)" onPress={importarRespaldo} variante="acento" deshabilitado={ocupado} />
+        </View>
+        <Aviso texto="Importar un respaldo REEMPLAZA la información actual de la gestión por la del archivo. Hazlo con cuidado." />
       </Tarjeta>
 
       <Tarjeta>

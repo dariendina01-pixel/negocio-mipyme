@@ -34,6 +34,22 @@ export function quitarLinea(carrito: LineaCarrito[], indice: number, todo: boole
   return cambiarCantidad(carrito, l.producto, -1);
 }
 
+/** Fija la cantidad exacta de un producto en el carrito (para teclear). */
+export function fijarCantidad(
+  carrito: LineaCarrito[],
+  producto: ProductoListable,
+  cantidad: number
+): LineaCarrito[] {
+  if (!isFinite(cantidad) || cantidad < 0) return carrito;
+  const limitada = Math.min(Math.floor(cantidad), Math.max(0, producto.stock));
+  if (limitada <= 0) return carrito.filter((l) => l.producto.id !== producto.id);
+  const existente = carrito.find((l) => l.producto.id === producto.id);
+  if (existente) {
+    return carrito.map((l) => (l.producto.id === producto.id ? { ...l, cantidad: limitada } : l));
+  }
+  return [...carrito, { producto, cantidad: limitada }];
+}
+
 export function totalCarrito(carrito: LineaCarrito[]): number {
   return subtotal(carrito.map((l) => ({ precioCents: l.producto.precioCents, cantidad: l.cantidad })));
 }
