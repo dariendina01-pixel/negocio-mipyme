@@ -11,9 +11,8 @@ import {
   Aviso,
   SinDatos,
   TecladoNumerico,
-  aFormato,
 } from "../../ui/components";
-import { fmt, fmtMoneda } from "../../core/money";
+import { fmt, fmtMoneda, aCentavos } from "../../core/money";
 import { productosDisponibles, registrarVenta, validarExistencias } from "../../core/operations";
 import { desgloseCambio } from "../../core/denominations";
 import type { LineaCarrito } from "./modelo";
@@ -112,13 +111,18 @@ export function PantallaCobro(props: {
   onConfirmado: () => void;
   onCancelar: () => void;
 }) {
-  const { depDb: db, mutarDep } = useApp();
+  const { depDb: db, mutarDep, gestDb } = useApp();
   const total = totalCarrito(props.carrito);
   const [recibido, setRecibido] = useState("0,00");
   const [descuento, setDescuento] = useState("0");
-  const recibidoCents = Math.round(parseFloat(aFormato(recibido.replace(/[^\d]/g, ""))));
+  const recibidoCents = aCentavos(recibido);
   const [confirmando, setConfirmando] = useState(false);
   const [mensaje, setMensaje] = useState("");
+
+  // Punto de venta para anotar la venta (se puede elegir entre todos los puntos)
+  const puntosVenta = gestDb.puntos.length > 0 ? gestDb.puntos : [];
+  const puntoInicial = db.meta.punto || db.meta.puntoNombre || (puntosVenta[0]?.id ?? "");
+  const [puntoSel, setPuntoSel] = useState<string>(puntoInicial);
 
   if (props.carrito.length === 0) {
     return (
@@ -149,7 +153,7 @@ export function PantallaCobro(props: {
     setConfirmando(true);
     mutarDep((d) => {
       registrarVenta(d, {
-        punto: d.meta.punto || d.meta.puntoNombre || db.meta.dispositivo,
+        punto: puntoSel || d.meta.punto || d.meta.puntoNombre || db.meta.dispositivo,
         items,
         descuentoPorciento: descPorciento,
         recibidoCents,
@@ -163,6 +167,24 @@ export function PantallaCobro(props: {
   return (
     <View style={estilos.contenido}>
       {mensaje ? <Aviso texto={mensaje} tipo="error" /> : null}
+      {puntosVenta.length > 0 ? (
+        <Tarjeta>
+          <Text style={estilos.etiqueta}>Punto de venta</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+            {puntosVenta.map((p) => {
+              const activo = p.id === puntoSel;
+              return (
+                <Boton
+                  key={p.id}
+                  texto={p.nombre}
+                  variante={activo ? "primario" : "secundario"}
+                  onPress={() => setPuntoSel(p.id)}
+                />
+              );
+            })}
+          </View>
+        </Tarjeta>
+      ) : null}
       <Tarjeta>
         <Text style={estilos.etiqueta}>Venta pendiente</Text>
         {props.carrito.map((l) => (

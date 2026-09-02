@@ -22,8 +22,21 @@ export interface Producto {
 
 export type TipoEntrada = "compra" | "beneficiario" | "consignacion";
 
+/** Unidad de medida física del producto (por defecto: unidad). */
+export type UnidadMedida = "unidad" | "paquete" | "lata" | "libra" | "caja";
+
+export const UNIDADES_MEDIDA: { valor: UnidadMedida; etiqueta: string }[] = [
+  { valor: "unidad", etiqueta: "Unidad" },
+  { valor: "paquete", etiqueta: "Paquete" },
+  { valor: "lata", etiqueta: "Lata" },
+  { valor: "libra", etiqueta: "Libra" },
+  { valor: "caja", etiqueta: "Caja" },
+];
+
 export interface ProductoGestion extends Producto {
   costoPromedioCents?: Centavos;
+  // Unidad de medida física (paquete, lata, etc.) para mostrar y anotar cantidades.
+  unidadMedida?: UnidadMedida;
   // Tipo de entrada por el que llegó la mercancía (compra/beneficiario/consignación).
   // Si está presente, el producto ya tiene una entrada registrada y se habilita el precio de venta.
   tipoEntrada?: TipoEntrada;

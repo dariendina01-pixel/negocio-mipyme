@@ -8,8 +8,9 @@ import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, Boton, Aviso, Campo } from "../../ui/components";
 import { crearPaqueteProductos, crearPaqueteConfig } from "../../core/sync/builders";
-import { dirDatos, exportarYCompartir, seleccionarArchivoRespaldo, puenteWifi } from "../helpersRN";
+import { dirDatos, exportarYCompartir, seleccionarArchivoRespaldo, puenteWifi, compartirTexto } from "../helpersRN";
 import { adapterExpo } from "../../core/fs/fs_expo";
+import { serializarJson } from "../../core/fs";
 import { aplicarPaquete } from "../../core/sync/merge";
 import { maxFolioRecibido } from "../../core/folio";
 import type { Paquete } from "../../core/types";
@@ -76,6 +77,30 @@ export function SincronizarGestion() {
       setMensaje({ texto: "Paquete de configuración listo.", tipo: "ok" });
     } catch (e) {
       setMensaje({ texto: "Error: " + String(e), tipo: "error" });
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const exportarRespaldo = async () => {
+    setOcupado(true);
+    try {
+      const texto = serializarJson(db);
+      const fecha = new Date().toISOString().slice(0, 10);
+      const nombre = await compartirTexto(
+        "gestion",
+        `respaldo_gestion_${fecha}.json`,
+        texto,
+        "Exportar respaldo de la gestión (JSON)"
+      );
+      setMensaje({
+        texto: nombre
+          ? "Respaldo exportado con toda la información. Guárdalo o compártelo."
+          : "No se pudo compartir el respaldo.",
+        tipo: "ok",
+      });
+    } catch (e) {
+      setMensaje({ texto: "Error al exportar respaldo: " + String(e), tipo: "error" });
     } finally {
       setOcupado(false);
     }
@@ -180,6 +205,14 @@ export function SincronizarGestion() {
         <Text style={estilos.subtitulo}>Importa el archivo que te envió la tienda (por WhatsApp/Bluetooth/email).</Text>
         <View style={{ marginTop: 10 }}>
           <Boton texto="Elegir archivo de ventas…" onPress={importarVentas} deshabilitado={ocupado} />
+        </View>
+      </Tarjeta>
+
+      <Tarjeta>
+        <Text style={estilos.titulo}>Respaldo completo</Text>
+        <Text style={estilos.subtitulo}>Exporta TODA la información de la gestión (productos, puntos, ventas, gastos, movimientos) como un solo archivo JSON.</Text>
+        <View style={{ marginTop: 10 }}>
+          <Boton texto="Exportar respaldo JSON" onPress={exportarRespaldo} variante="acento" deshabilitado={ocupado} />
         </View>
       </Tarjeta>
 

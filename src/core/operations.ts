@@ -326,6 +326,7 @@ export function nuevoProducto(): ProductoGestion {
     activo: true,
     updatedAt: new Date().toISOString(),
     stock: 0,
+    unidadMedida: "unidad",
     inventario: {},
   };
 }
