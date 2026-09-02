@@ -11,6 +11,7 @@ import {
   crearPaqueteProductos,
   crearPaqueteInventario,
   crearPaqueteVentas,
+  crearPaqueteBaseDia,
 } from "../src/core/sync/builders";
 import { registrarVenta, registrarRecepcionDirecta, enviarMercanciaAPunto } from "../src/core/operations";
 import { plantillaDependiente, plantillaGestion } from "../src/core/types";
@@ -138,4 +139,28 @@ test("flujo completo: gestión -> precio e inventario -> punto vende -> gestión
   aplicarPaquete(gestion, paqueteVentas, "gestion");
   assert.equal(gestion.ventasRecibidas.length, 1);
   assert.equal(gestion.productos[0].inventario["punto-1"], 12); // 20-8
+});
+
+test("BASE_DIA: un dependiente sin identidad previa puede abrir el día", () => {
+  const pan = producto("Pan", 50, 0);
+  const gestion = gestionCon([gestionProducto(pan, 0)]);
+  gestion.productos[0].inventario["punto-1"] = 25;
+  gestion.puntos[0].direccion = "Calle 12 #34";
+  gestion.puntos[0].cuentaTransferencia = "123456789";
+
+  const paquete = crearPaqueteBaseDia(gestion, "punto-1");
+
+  // dependiente NUEVO: sin punto identificado todavía
+  const dependiente = dependienteCon([]);
+  dependiente.meta.punto = ""; // aún sin identidad
+  dependiente.meta.puntoNombre = "";
+
+  const r = aplicarPaquete(dependiente, paquete, "D-PRUEBA"); // idMiBase = dispositivo, NO coincide con destino
+  assert.equal(r.aplicado, true, "el BASE_DIA debe aplicarse aunque el dispositivo no coincida con el punto");
+  assert.equal(dependiente.meta.punto, "punto-1");
+  assert.equal(dependiente.meta.puntoNombre, "Punto Uno");
+  assert.equal(dependiente.meta.puntoDireccion, "Calle 12 #34");
+  assert.equal(dependiente.meta.puntoCuenta, "123456789");
+  assert.equal(dependiente.productos.length, 1);
+  assert.equal(dependiente.productos[0].stock, 25); // inventario de apertura
 });

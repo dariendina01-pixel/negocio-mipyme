@@ -26,6 +26,11 @@ function pertenece(desde: unknown, para: string | "cualquiera"): boolean {
   return para === "cualquiera" || para === desde;
 }
 
+/** True si la base es de un dependiente (DependienteDb lleva meta.punto). */
+function esRecipienteDependiente(base: BaseRecipiente): boolean {
+  return "punto" in (base as DependienteDb).meta;
+}
+
 /** Upsert de producto en base de dependiente, conservando el stock local. */
 function upsertProductoDependiente(db: DependienteDb, p: Producto): number {
   const idx = db.productos.findIndex((x) => x.id === p.id);
@@ -91,8 +96,20 @@ export function aplicarPaquete(
   paquete: Paquete,
   idMiBase: string
 ): ResultadoAplicar {
-  // 1) Fast-path: si ya consumimos un folio mayor/igual de ese origen+tipo, ignorar
-  if (paquete.destino !== "cualquiera" && !pertenece(idMiBase, paquete.destino)) {
+  // 1) Fast-path: si ya consumimos un folio mayor/igual de ese origen+tipo, ignorar.
+  //    El BASE_DIA es especial: lleva la identidad del punto, por lo que un
+  //    dependiente todavía sin identificar NO puede comparar destino. Se permite
+  //    aplicarlo siempre que llegue a un dependiente; su contenido fija el punto.
+  const esDependienteRecibiendo = esRecipienteDependiente(base);
+  const baseNecesitaIdentidad =
+    esDependienteRecibiendo &&
+    paquete.tipo === "BASE_DIA" &&
+    !(base as DependienteDb).meta.punto;
+  if (
+    paquete.destino !== "cualquiera" &&
+    !pertenece(idMiBase, paquete.destino) &&
+    !baseNecesitaIdentidad
+  ) {
     return { aplicado: false, motivo: "Paquete para otro destino" };
   }
   const yaVisto = folioRecibido(base.meta, paquete.origen, paquete.tipo);

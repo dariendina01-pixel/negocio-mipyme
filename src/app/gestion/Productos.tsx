@@ -143,6 +143,29 @@ function etiquetaUnidad(u?: UnidadMedida): string {
   return UNIDADES_MEDIDA.find((x) => x.valor === u)?.etiqueta ?? "Unidad";
 }
 
+/**
+ * Normaliza la entrada de una cantidad de dinero escrita con teclado numérico/decimal.
+ * Si el usuario escribe con punto decimal (ej. "120.00") lo pasa a coma (formato cubano)
+ * para que aCentavos no lo confunda con separador de miles. "120" se queda igual.
+ */
+function normalizarEntradaMoneda(t: string): string {
+  let v = t.replace(/\s/g, "");
+  // Permite dígitos y un solo separador decimal (punto o coma)
+  const tieneComa = v.includes(",");
+  const tienePunto = v.includes(".");
+  if (tienePunto && !tieneComa) {
+    // Convierte el punto decimal a coma (formato cubano)
+    v = v.replace(".", ",").replace(/\./g, "");
+  } else if (tieneComa) {
+    // Formato cubano: quita puntos (miles) y deja solo la primera coma
+    v = v.replace(/\./g, "");
+    const partes = v.split(",");
+    v = partes[0] + (partes.length > 1 ? "," + partes.slice(1).join("") : "");
+  }
+  v = v.replace(/[^\d,]/g, "");
+  return v;
+}
+
 function EditorProducto(props: {
   producto: ProductoGestion;
   esNuevo: boolean;
@@ -156,7 +179,7 @@ function EditorProducto(props: {
   const [categoria, setCategoria] = useState(props.producto.categoria ?? "");
   const [unidad, setUnidad] = useState<UnidadMedida>(props.producto.unidadMedida ?? "unidad");
   const [tipoEntrada, setTipoEntrada] = useState<TipoEntrada | "">(props.producto.tipoEntrada ?? "");
-  const [costo, setCosto] = useState(props.producto.costoPromedioCents ? String(props.producto.costoPromedioCents) : "");
+  const [costo, setCosto] = useState(props.producto.costoPromedioCents ? fmt(props.producto.costoPromedioCents) : "");
   const [cantidadEntrada, setCantidadEntrada] = useState("");
   // Distribución de la entrada nueva: clave destino -> unidades
   const [distribucion, setDistribucion] = useState<Record<string, string>>({});
@@ -262,7 +285,7 @@ function EditorProducto(props: {
         </View>
         {tipoEntrada ? (
           <>
-            <Campo etiqueta="Costo unitario" valor={costo} onChange={setCosto} teclado="numeric" />
+            <Campo etiqueta="Costo unitario" valor={costo} onChange={(t) => setCosto(normalizarEntradaMoneda(t))} teclado="numeric" />
             <Campo
               etiqueta={`Cantidad por ${TIPOS_ENTRADA.find((x) => x.valor === tipoEntrada)?.etiqueta?.toLowerCase() ?? "entrada"} (${etiquetaUnidad(unidad)})`}
               valor={cantidadEntrada}
@@ -301,7 +324,7 @@ function EditorProducto(props: {
             <Campo
               etiqueta="Precio de venta (en pesos)"
               valor={precio}
-              onChange={setPrecio}
+              onChange={(t) => setPrecio(normalizarEntradaMoneda(t))}
               teclado="decimal-pad"
               placeholder="Ej: 1500 o 1234,50"
             />
