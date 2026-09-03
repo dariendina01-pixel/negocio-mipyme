@@ -2,7 +2,7 @@
 // Devoluciones.tsx — Registrar devoluciones de productos vendidos
 // =============================================================
 import React, { useState } from "react";
-import { View, Text, FlatList, Pressable, TextInput } from "react-native";
+import { View, Text, ScrollView, Pressable, TextInput } from "react-native";
 import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, Boton, Campo, Aviso, SinDatos } from "../../ui/components";
@@ -45,19 +45,18 @@ export function PantallaDevoluciones() {
   };
 
   return (
-    <View style={estilos.contenido}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
       <Aviso texto="La mercancía devuelta vuelve al inventario del punto y se resta del total vendido del día." />
       {error ? <Aviso texto={error} tipo="error" /> : null}
 
       <Tarjeta>
         <Text style={estilos.etiqueta}>Producto a devolver</Text>
-        <FlatList
-          data={productos}
-          keyExtractor={(p) => p.id}
-          style={{ maxHeight: 220, marginTop: 6 }}
-          ListEmptyComponent={<SinDatos texto="Sin productos. Importa la base en Sincronizar." />}
-          renderItem={({ item }) => (
+        {productos.length === 0 ? (
+          <SinDatos texto="Sin productos. Importa la base en Sincronizar." />
+        ) : (
+          productos.map((item) => (
             <Pressable
+              key={item.id}
               onPress={() => setProductoId(item.id)}
               style={[estilos.fila, { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colores.borde }]}
             >
@@ -77,8 +76,8 @@ export function PantallaDevoluciones() {
                 }}
               />
             </Pressable>
-          )}
-        />
+          ))
+        )}
         {seleccionado ? (
           <Text style={[estilos.etiqueta, { marginTop: 8 }]}>
             Seleccionado: {seleccionado.nombre} · Stock {seleccionado.stock}
@@ -124,6 +123,6 @@ export function PantallaDevoluciones() {
           ))
         )}
       </Tarjeta>
-    </View>
+    </ScrollView>
   );
 }

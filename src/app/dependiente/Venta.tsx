@@ -2,7 +2,7 @@
 // Venta.tsx — Pantalla de venta: catálogo + carrito + cobro/cambio
 // =============================================================
 import React, { useState } from "react";
-import { View, Text, Pressable, FlatList, TextInput } from "react-native";
+import { View, Text, Pressable, FlatList, TextInput, ScrollView } from "react-native";
 import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
 import {
@@ -189,9 +189,9 @@ export function PantallaCobro(props: {
 
   if (props.carrito.length === 0) {
     return (
-      <View style={estilos.contenido}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={estilos.contenido}>
         <SinDatos texto="No hay venta pendiente. Pasa por la pestaña Venta." />
-      </View>
+      </ScrollView>
     );
   }
 
@@ -232,7 +232,7 @@ export function PantallaCobro(props: {
   };
 
   return (
-    <View style={estilos.contenido}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
       {mensaje ? <Aviso texto={mensaje} tipo="error" /> : null}
       {puntosVenta.length > 0 ? (
         <Tarjeta>
@@ -315,7 +315,7 @@ export function PantallaCobro(props: {
           />
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -345,13 +345,14 @@ const s = {
   },
   cantidadInput: {
     flex: 1,
-    height: 30,
+    minWidth: 48,
+    height: 34,
     borderWidth: 1,
     borderColor: colores.borde,
     borderRadius: 6,
     textAlign: "center",
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "800",
     color: colores.texto,
     backgroundColor: colores.blanco,
     paddingVertical: 0,
@@ -362,7 +363,7 @@ const s = {
     borderTopWidth: 1,
     borderTopColor: colores.borde,
     padding: 12,
-    paddingBottom: 18,
+    paddingBottom: 80,
   },
   masMenos: { fontSize: 20, fontWeight: "800", color: colores.primario, paddingHorizontal: 8 },
   chipDesglose: {

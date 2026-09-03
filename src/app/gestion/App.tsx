@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { View, Pressable, Text } from "react-native";
 import { useApp } from "../estado";
 import { Encabezado } from "../../ui/components";
-import { BarraTabs } from "../../ui/nav";
+import { BotonNavegacion, PestanaNavegacion } from "../../ui/nav";
 import { ResumenGestion } from "./Resumen";
 import { ProductosGestion } from "./Productos";
 import { EnviosGestion } from "./Envios";
@@ -16,14 +16,14 @@ import { AjustesGestion } from "./Ajustes";
 
 type Pestana = "resumen" | "productos" | "envios" | "recibidos" | "puntos" | "ajustes" | "sync";
 
-const PESTANAS: { clave: Pestana; etiqueta: string }[] = [
-  { clave: "resumen", etiqueta: "Resumen" },
-  { clave: "productos", etiqueta: "Productos" },
-  { clave: "envios", etiqueta: "Envíos" },
-  { clave: "recibidos", etiqueta: "Recibidos" },
-  { clave: "puntos", etiqueta: "Puntos" },
-  { clave: "ajustes", etiqueta: "Inventarios" },
-  { clave: "sync", etiqueta: "Sync" },
+const PESTANAS: PestanaNavegacion<Pestana>[] = [
+  { clave: "resumen", etiqueta: "Resumen", forma: "circulo" },
+  { clave: "productos", etiqueta: "Productos", forma: "cuadrado" },
+  { clave: "envios", etiqueta: "Envíos", forma: "capsula" },
+  { clave: "recibidos", etiqueta: "Recibidos", forma: "rombo" },
+  { clave: "puntos", etiqueta: "Puntos", forma: "triangulo" },
+  { clave: "ajustes", etiqueta: "Inventarios", forma: "semiluna" },
+  { clave: "sync", etiqueta: "Sync", forma: "circulo", color: "#167DB5" },
 ];
 
 export function AppGestion({ onCambiarApp }: { onCambiarApp: () => void }) {
@@ -49,8 +49,7 @@ export function AppGestion({ onCambiarApp }: { onCambiarApp: () => void }) {
       {pestana === "ajustes" && <AjustesGestion />}
       {pestana === "sync" && <SincronizarGestion />}
 
-      <View style={{ marginBottom: 56 }} />
-      <BarraTabs pestanas={PESTANAS} activa={pestana} onCambiar={setPestana} />
+      <BotonNavegacion pestanas={PESTANAS} activa={pestana} onCambiar={setPestana} />
     </View>
   );
 }

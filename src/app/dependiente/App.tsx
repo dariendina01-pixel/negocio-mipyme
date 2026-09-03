@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { View, Pressable, Text } from "react-native";
 import { useApp } from "../estado";
 import { Encabezado } from "../../ui/components";
-import { BarraTabs } from "../../ui/nav";
+import { BotonNavegacion, PestanaNavegacion } from "../../ui/nav";
 import { PantallaVenta, PantallaCobro } from "./Venta";
 import { Calculadora } from "./Calculadora";
 import { PantallaDia } from "./Dia";
@@ -15,13 +15,13 @@ import type { LineaCarrito } from "./modelo";
 
 type Pestana = "venta" | "cobro" | "calculadora" | "dia" | "devoluciones" | "sync";
 
-const PESTANAS: { clave: Pestana; etiqueta: string }[] = [
-  { clave: "venta", etiqueta: "Venta" },
-  { clave: "cobro", etiqueta: "Cobro" },
-  { clave: "calculadora", etiqueta: "Calc." },
-  { clave: "dia", etiqueta: "Día" },
-  { clave: "devoluciones", etiqueta: "Dev." },
-  { clave: "sync", etiqueta: "Sync" },
+const PESTANAS: PestanaNavegacion<Pestana>[] = [
+  { clave: "venta", etiqueta: "Venta", forma: "circulo" },
+  { clave: "cobro", etiqueta: "Cobro", forma: "cuadrado" },
+  { clave: "calculadora", etiqueta: "Calc.", forma: "capsula" },
+  { clave: "dia", etiqueta: "Día", forma: "rombo" },
+  { clave: "devoluciones", etiqueta: "Dev.", forma: "triangulo" },
+  { clave: "sync", etiqueta: "Sync", forma: "semiluna" },
 ];
 
 export function AppDependiente({ onCambiarApp }: { onCambiarApp: () => void }) {
@@ -66,8 +66,7 @@ export function AppDependiente({ onCambiarApp }: { onCambiarApp: () => void }) {
       {pestana === "devoluciones" && <PantallaDevoluciones />}
       {pestana === "sync" && <SincronizarDependiente />}
 
-      <View style={{ marginBottom: 56 }} />
-      <BarraTabs pestanas={PESTANAS} activa={pestana} onCambiar={setPestana} />
+      <BotonNavegacion pestanas={PESTANAS} activa={pestana} onCambiar={setPestana} />
     </View>
   );
 }

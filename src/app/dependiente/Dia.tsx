@@ -2,7 +2,7 @@
 // Dia.tsx — Gastos del día, mercancía recibida y resumen de caja
 // =============================================================
 import React, { useState } from "react";
-import { View, Text, FlatList, Pressable, TextInput } from "react-native";
+import { View, Text, ScrollView, Pressable, TextInput } from "react-native";
 import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, Boton, Campo, Aviso, SinDatos, TecladoNumerico, aFormato } from "../../ui/components";
@@ -19,7 +19,7 @@ export function PantallaDia() {
   const resumen = resumenDia(db, dia);
 
   return (
-    <View style={estilos.contenido}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
       <View style={[s.pestanas, { marginBottom: 12 }]}>
         {([
           ["gastos", "Gastos"],
@@ -39,7 +39,7 @@ export function PantallaDia() {
       {seccion === "gastos" && <GastosDelDia />}
       {seccion === "mercancia" && <MercanciaDelDia />}
       {seccion === "resumen" && <Resumen resumen={resumen} />}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -133,13 +133,11 @@ function MercanciaDelDia() {
       <Tarjeta>
         <Campo etiqueta="Origen de la mercancía" valor={origen} onChange={setOrigen} placeholder="Proveedor / bodega / otro punto…" />
         <Text style={estilos.etiqueta}>Productos recibidos</Text>
-        <FlatList
-          data={productos}
-          keyExtractor={(p) => p.id}
-          style={{ marginTop: 6, maxHeight: 320 }}
-          ListEmptyComponent={<SinDatos texto="Sin productos cargados. Importa la lista de precios en Sincronizar." />}
-          renderItem={({ item }) => (
-            <View style={[estilos.fila, { paddingVertical: 6 }]}>
+        {productos.length === 0 ? (
+          <SinDatos texto="Sin productos cargados. Importa la lista de precios en Sincronizar." />
+        ) : (
+          productos.map((item) => (
+            <View key={item.id} style={[estilos.fila, { paddingVertical: 6 }]}>
               <Text style={{ flex: 1 }} numberOfLines={1}>
                 {item.nombre}
               </Text>
@@ -151,8 +149,8 @@ function MercanciaDelDia() {
                 onChangeText={(t) => setCantidades((prev) => ({ ...prev, [item.id]: t.replace(/[^\d]/g, "") }))}
               />
             </View>
-          )}
-        />
+          ))
+        )}
       </Tarjeta>
       <Boton texto="Registrar recepción" onPress={agregar} grande />
     </>

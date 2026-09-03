@@ -2,7 +2,7 @@
 // Resumen.tsx — Dashboard del dueño
 // =============================================================
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, SinDatos } from "../../ui/components";
@@ -14,7 +14,7 @@ export function ResumenGestion() {
   const d = dashboardGestion(db);
 
   return (
-    <View style={estilos.contenido}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={estilos.contenido}>
       <Tarjeta>
         <Text style={estilos.etiqueta}>Nombre del negocio</Text>
         <Text style={[estilos.titulo, { marginTop: 2 }]}>{db.meta.nombreNegocio || "Sin nombre configurado"}</Text>
@@ -59,7 +59,7 @@ export function ResumenGestion() {
           <Text style={{ fontWeight: "800" }}>{d.movimientosRecientes}</Text>
         </View>
       </Tarjeta>
-    </View>
+    </ScrollView>
   );
 }
 

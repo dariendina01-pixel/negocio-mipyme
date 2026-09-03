@@ -3,7 +3,7 @@
 // contador de dinero por denominaciones y desglose en billetes
 // =============================================================
 import React, { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import { useApp } from "../estado";
 import { estilos, colores } from "../../ui/theme";
 import { Tarjeta, Boton, TecladoNumerico, EntradaDenominacion, Aviso } from "../../ui/components";
@@ -22,7 +22,7 @@ export function Calculadora() {
     { clave: "desglose", etiqueta: "Billetes" },
   ];
   return (
-    <View style={estilos.contenido}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
       <View style={[s.pestanas, { marginBottom: 12 }]}>
         {modos.map((m) => (
           <Pressable
@@ -41,7 +41,7 @@ export function Calculadora() {
       {modo === "devolucion" && <HerramientaDevolucion />}
       {modo === "contador" && <HerramientaContador denom={db.config.denominaciones} />}
       {modo === "desglose" && <HerramientaDesglose denom={db.config.denominaciones} />}
-    </View>
+    </ScrollView>
   );
 }
 
